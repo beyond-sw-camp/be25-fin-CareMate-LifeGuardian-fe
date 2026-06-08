@@ -10,9 +10,9 @@ import AdminAuditPage from '../pages/admin/AdminAuditPage.vue'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.vue'
 import AdminEsgPage from '../pages/admin/AdminEsgPage.vue'
 import AdminMembersPage from '../pages/admin/AdminMembersPage.vue'
-import DashboardPage from '../pages/DashboardPage.vue'
 import LoginPage from '../pages/LoginPage.vue'
-import PotentialPage from '../pages/PotentialPage.vue'
+import PotentialPage from '../pages/sales/PotentialPage.vue'
+import SalesDashboardPage from '../pages/sales/SalesDashboardPage.vue'
 import SalesPage from '../pages/sales/SalesPage.vue'
 
 const roleHomeMap: Record<UserRole, string> = {
@@ -45,7 +45,7 @@ const router = createRouter({
     {
       path: '/sales/dashboard',
       name: 'sales-dashboard',
-      component: DashboardPage,
+      component: SalesDashboardPage,
       meta: {
         allowedRoles: [SALES_ROLE],
       },
