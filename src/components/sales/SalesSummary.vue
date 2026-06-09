@@ -1,16 +1,27 @@
+<script setup lang="ts">
+import type { SalesSummary } from '@/api/sales'
+
+defineProps<{
+  summary: SalesSummary | null
+}>()
+</script>
+
 <template>
   <section class="sales-summary" aria-label="영업 실적 요약">
     <article class="card sales-summary__count-card">
-      <p class="sales-summary__label">당일 계약 수</p>
-      <strong class="sales-summary__count">2<span>건</span></strong>
+      <p class="sales-summary__label">월 계약 수</p>
+      <strong class="sales-summary__count">{{ summary?.contractCount ?? 0 }}<span>건</span></strong>
     </article>
 
     <article class="card sales-summary__target-card">
-      <p class="sales-summary__label">5월 실적 목표</p>
+      <p class="sales-summary__label">{{ summary?.month ?? '-' }}월 실적 목표 {{ summary?.targetCount ?? 0 }}건</p>
       <div class="sales-summary__progress-track">
-        <div class="sales-summary__progress-fill"></div>
+        <div
+          class="sales-summary__progress-fill"
+          :style="{ width: `${Math.min(summary?.achievementRate ?? 0, 100)}%` }"
+        ></div>
       </div>
-      <p class="sales-summary__caption">목표 달성률 70%</p>
+      <p class="sales-summary__caption">목표 달성률 {{ summary?.achievementRate ?? 0 }}%</p>
     </article>
   </section>
 </template>
