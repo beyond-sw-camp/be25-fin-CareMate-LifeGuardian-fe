@@ -27,7 +27,7 @@
   --color-text-muted: #6f7785;
   --color-text-subtle: #9aa3af;
 
-  /* 상태 표현용 색상입니다. badge, 알림, 상태 라벨에서 사용(임시). */
+  /* 상태 표현용 색상. badge, 알림, 상태 라벨에서 사용(임시). */
   --color-success: #22c55e;
   --color-warning: #facc15;
   --color-danger: #ef4444;
