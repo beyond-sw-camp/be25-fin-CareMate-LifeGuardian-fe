@@ -1,128 +1,89 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import axios from 'axios'
+import { onMounted, ref } from 'vue'
 import AppHeader from '../../components/common/Header.vue'
 import AppSidebar from '../../components/common/Sidebar.vue'
 import SalesPagination from '../../components/sales/SalesPagination.vue'
 import SalesSearchForm from '../../components/sales/SalesSearchForm.vue'
 import SalesSummary from '../../components/sales/SalesSummary.vue'
 import SalesTable from '../../components/sales/SalesTable.vue'
+import {
+  getSalesList,
+  getSalesSummary,
+  type SalesCustomer,
+  type SalesSearchFilters,
+  type SalesSummary as SalesSummaryData,
+} from '@/api/sales'
 
 const isCriteriaModalOpen = ref(false)
+const summary = ref<SalesSummaryData | null>(null)
+const customers = ref<SalesCustomer[]>([])
+const currentPage = ref(1)
+const totalPages = ref(0)
+const totalCount = ref(0)
+const isLoading = ref(false)
+const errorMessage = ref('')
+const filters = ref<SalesSearchFilters>({})
 
-const customers = [
-  {
-    name: '박재현',
-    gender: '남',
-    age: 16,
-    birthDate: '0000/05/15',
-    step: 'danger',
-    customerStage: '잠재 고객',
-    contractStatus: '미상담',
-    contractClass: 'danger-soft',
-    productName: '-',
-    insuredName: '박재현',
-    dueDate: '-',
-    reportStatus: '미발송',
-  },
-  {
-    name: '오수진',
-    gender: '여',
-    age: 10,
-    birthDate: '0000/05/15',
-    step: 'warning',
-    customerStage: '잠재 고객',
-    contractStatus: '상담중',
-    contractClass: 'muted',
-    productName: '-',
-    insuredName: '오수진',
-    dueDate: '0000/00/00',
-    reportStatus: '발송완료',
-  },
-  {
-    name: '이찬호',
-    gender: '남',
-    age: 49,
-    birthDate: '0000/05/15',
-    step: 'danger',
-    customerStage: '통합 고객',
-    contractStatus: '설계중',
-    contractClass: 'warning',
-    productName: '종합보험',
-    insuredName: '김상호',
-    dueDate: '0000/00/00',
-    reportStatus: '발송완료',
-  },
-  {
-    name: '김수빈',
-    gender: '여',
-    age: 13,
-    birthDate: '0000/05/15',
-    step: 'danger',
-    customerStage: '잠재 고객',
-    contractStatus: '상담중',
-    contractClass: 'muted',
-    productName: '-',
-    insuredName: '김수빈',
-    dueDate: '0000/00/00',
-    reportStatus: '발송완료',
-  },
-  {
-    name: '박하늘',
-    gender: '여',
-    age: 9,
-    birthDate: '0000/05/15',
-    step: 'danger',
-    customerStage: '통합 고객',
-    contractStatus: '청약완료',
-    contractClass: 'danger',
-    productName: '치아보험',
-    insuredName: '박하늘',
-    dueDate: '0000/00/00',
-    reportStatus: '미발송',
-  },
-  {
-    name: '김마루',
-    gender: '남',
-    age: 17,
-    birthDate: '0000/05/15',
-    step: 'warning',
-    customerStage: '통합 고객',
-    contractStatus: '청약중',
-    contractClass: 'success',
-    productName: '치아보험',
-    insuredName: '김마루',
-    dueDate: '0000/00/00',
-    reportStatus: '미발송',
-  },
-  {
-    name: '이현구',
-    gender: '남',
-    age: 42,
-    birthDate: '0000/05/15',
-    step: 'warning',
-    customerStage: '통합 고객',
-    contractStatus: '설계완료',
-    contractClass: 'blue',
-    productName: '종합보험',
-    insuredName: '김민국',
-    dueDate: '0000/00/00',
-    reportStatus: '발송완료',
-  },
-  {
-    name: '백재구',
-    gender: '남',
-    age: 39,
-    birthDate: '0000/05/15',
-    step: 'danger',
-    customerStage: '잠재 고객',
-    contractStatus: '미상담',
-    contractClass: 'danger-soft',
-    productName: '-',
-    insuredName: '-',
-    dueDate: '-',
-    reportStatus: '미발송',
-  },
-]
+// KPI API가 요구하는 yyyyMM 형식으로 현재 연월을 생성
+const currentYearMonth = () => {
+  const now = new Date()
+  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+// Axios 응답에 서버 메시지가 있으면 화면 오류 문구로 우선 사용
+const getErrorMessage = (error: unknown) => {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message ?? '영업현황을 불러오지 못했습니다.'
+  }
+
+  return '영업현황을 불러오지 못했습니다.'
+}
+
+// KPI 조회 실패가 목록 조회를 막지 않도록 별도로 처리
+const loadSummary = async () => {
+  try {
+    summary.value = await getSalesSummary(currentYearMonth())
+  } catch {
+    summary.value = null
+  }
+}
+
+// 현재 검색 조건을 유지하면서 요청한 페이지의 목록을 조회
+const loadSalesList = async (page = currentPage.value) => {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const result = await getSalesList({
+      ...filters.value,
+      page,
+      size: 10,
+    })
+    customers.value = result.items
+    currentPage.value = result.page
+    totalPages.value = result.totalPages
+    totalCount.value = result.totalCount
+  } catch (error) {
+    customers.value = []
+    totalPages.value = 0
+    totalCount.value = 0
+    errorMessage.value = getErrorMessage(error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 새 검색을 실행하면 첫 페이지부터 다시 조회
+const handleSearch = (nextFilters: SalesSearchFilters) => {
+  filters.value = nextFilters
+  void loadSalesList(1)
+}
+
+onMounted(() => {
+  // 서로 독립적인 KPI와 목록 API를 동시에 호출
+  void Promise.all([loadSummary(), loadSalesList(1)])
+})
 </script>
 
 <template>
@@ -132,12 +93,12 @@ const customers = [
     <main class="app-main sales-page__main">
       <AppHeader title="영업현황" />
 
-      <SalesSummary />
-      <SalesSearchForm />
+      <SalesSummary :summary="summary" />
+      <SalesSearchForm @search="handleSearch" />
 
       <section class="card sales-list">
         <div class="sales-list__header">
-          <h3 class="sales-section-title">목록</h3>
+          <h3 class="sales-section-title">목록 <span class="sales-list__count">총 {{ totalCount }}건</span></h3>
           <div class="sales-list__actions">
             <button
               class="button button-secondary sales-list__criteria-button"
@@ -150,8 +111,14 @@ const customers = [
           </div>
         </div>
 
-        <SalesTable :customers="customers" />
-        <SalesPagination />
+        <p v-if="errorMessage" class="sales-list__message sales-list__message--error">{{ errorMessage }}</p>
+        <p v-else-if="isLoading" class="sales-list__message">불러오는 중...</p>
+        <SalesTable v-else :customers="customers" />
+        <SalesPagination
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          @change="loadSalesList"
+        />
       </section>
     </main>
 
@@ -212,6 +179,27 @@ const customers = [
   font-size: 16px;
   font-weight: 900;
   letter-spacing: 0;
+}
+
+.sales-list__count {
+  margin-left: 5px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sales-list__message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 110px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.sales-list__message--error {
+  color: #d85a65;
 }
 
 .sales-list__actions {

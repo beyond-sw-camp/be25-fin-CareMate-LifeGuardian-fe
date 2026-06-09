@@ -1,22 +1,32 @@
 <script setup lang="ts">
-type Customer = {
-  name: string
-  gender: string
-  age: number
-  birthDate: string
-  step: string
-  customerStage: string
-  contractStatus: string
-  contractClass: string
-  productName: string
-  insuredName: string
-  dueDate: string
-  reportStatus: string
-}
+import type { SalesCustomer } from '@/api/sales'
 
 defineProps<{
-  customers: Customer[]
+  customers: SalesCustomer[]
 }>()
+
+// 백엔드 성별 코드와 영문 값을 화면 표시값으로 변환한다.
+const genderLabel = (gender: string) => {
+  if (gender === 'Male' || gender === 'M') return '남'
+  if (gender === 'Female' || gender === 'F') return '여'
+  return gender
+}
+
+// 계약 상태 코드에 대응하는 배지 색상 클래스를 결정한다.
+const contractClass = (statusCode?: string) => {
+  const classMap: Record<string, string> = {
+    '01': 'warning',
+    '02': 'blue',
+    '03': 'success',
+    '04': 'danger',
+    '05': 'muted',
+  }
+
+  return statusCode ? classMap[statusCode] ?? 'muted' : 'danger-soft'
+}
+
+// 상령일 임박 고객을 우선순위 색상으로 표시한다.
+const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 </script>
 
 <template>
@@ -40,28 +50,37 @@ defineProps<{
         </tr>
       </thead>
       <tbody>
-        <tr v-for="customer in customers" :key="customer.name">
+        <tr v-for="customer in customers" :key="customer.customerId">
           <td><input type="checkbox" /></td>
-          <td>{{ customer.name }}</td>
-          <td>{{ customer.gender }}</td>
+          <td>{{ customer.customerName }}</td>
+          <td>{{ genderLabel(customer.gender) }}</td>
           <td>{{ customer.age }}</td>
           <td>{{ customer.birthDate }}</td>
           <td>
-            <span class="step-dot" :class="`step-dot--${customer.step}`"></span>
+            <span
+              v-if="customer.threeStepCode || customer.sortRank === 1"
+              class="step-dot"
+              :class="`step-dot--${stepClass(customer.sortRank)}`"
+              :title="customer.threeStepName"
+            ></span>
+            <span v-else>-</span>
           </td>
-          <td>{{ customer.customerStage }}</td>
+          <td>{{ customer.customerStageName }}</td>
           <td>
-            <span class="contract-badge" :class="`contract-badge--${customer.contractClass}`">
-              {{ customer.contractStatus }}
+            <span class="contract-badge" :class="`contract-badge--${contractClass(customer.contractStatusCode)}`">
+              {{ customer.contractStatusName }}
             </span>
           </td>
-          <td>{{ customer.productName }}</td>
+          <td>{{ customer.insuranceName }}</td>
           <td>{{ customer.insuredName }}</td>
-          <td>{{ customer.dueDate }}</td>
-          <td>{{ customer.reportStatus }}</td>
+          <td>{{ customer.webformReceivedAt }}</td>
+          <td>{{ customer.reportStatusName }}</td>
           <td>
-            <button class="report-button" type="button">발송</button>
+            <button v-if="customer.canSendReport" class="report-button" type="button">발송</button>
           </td>
+        </tr>
+        <tr v-if="customers.length === 0">
+          <td class="sales-table__empty" colspan="13">조회된 영업현황이 없습니다.</td>
         </tr>
       </tbody>
     </table>
@@ -96,6 +115,11 @@ defineProps<{
 
 .sales-table tr:last-child td {
   border-bottom: 0;
+}
+
+.sales-table .sales-table__empty {
+  height: 80px;
+  color: var(--color-text-muted);
 }
 
 .sales-table th:first-child,
