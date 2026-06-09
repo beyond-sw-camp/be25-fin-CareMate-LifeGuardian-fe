@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import {
-  ACCESS_TOKEN_STORAGE_KEY,
-  REFRESH_TOKEN_STORAGE_KEY,
-  USER_BRANCH_STORAGE_KEY,
-  USER_ID_STORAGE_KEY,
-  USER_NAME_STORAGE_KEY,
-  USER_REGION_STORAGE_KEY,
-  USER_ROLE_STORAGE_KEY,
-} from '../../constants/auth'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   title: string
@@ -16,15 +8,10 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const logout = () => {
-  localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY)
-  localStorage.removeItem(USER_ID_STORAGE_KEY)
-  localStorage.removeItem(USER_ROLE_STORAGE_KEY)
-  localStorage.removeItem(USER_NAME_STORAGE_KEY)
-  localStorage.removeItem(USER_REGION_STORAGE_KEY)
-  localStorage.removeItem(USER_BRANCH_STORAGE_KEY)
+  authStore.logout()
   router.push('/login')
 }
 </script>
