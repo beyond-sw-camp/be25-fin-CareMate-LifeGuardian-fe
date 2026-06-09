@@ -60,7 +60,7 @@ export type SalesSearchFilters = Omit<SalesSearchParams, 'page' | 'size'>
 
 // 선택한 연월의 계약 목표와 달성률을 조회한다.
 export async function getSalesSummary(targetYearMonth: string) {
-  const response = await api.get<ApiResponse<SalesSummary>>('/api/v1/sales/performance/summary', {
+  const response = await api.get<ApiResponse<SalesSummary>>('/v1/sales/performance/summary', {
     params: { targetYearMonth },
   })
 
@@ -73,7 +73,7 @@ export async function getSalesList(params: SalesSearchParams) {
     ...params,
     contractStatusCodes: params.contractStatusCodes?.join(','),
   }
-  const response = await api.get<ApiResponse<SalesPage>>('/api/v1/sales/performance/contracts', {
+  const response = await api.get<ApiResponse<SalesPage>>('/v1/sales/performance/contracts', {
     params: requestParams,
   })
 
