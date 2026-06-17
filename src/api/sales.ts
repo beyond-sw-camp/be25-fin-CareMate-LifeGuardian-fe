@@ -44,6 +44,21 @@ export interface SalesPage {
   items: SalesCustomer[]
 }
 
+export interface ReportSendResult {
+  customerId: number
+  customerName: string
+  sendStatusCode: string
+  sendStatusName: string
+  sentAt: string
+}
+
+export interface ReportBulkSendResult {
+  requestedCount: number
+  successCount: number
+  failedCount: number
+  sentAt: string
+}
+
 export interface SalesSearchParams {
   customerName?: string
   age?: number
@@ -76,6 +91,22 @@ export async function getSalesList(params: SalesSearchParams) {
   const response = await api.get<ApiResponse<SalesPage>>('/v1/sales/performance/contracts', {
     params: requestParams,
   })
+
+  return response.data.data
+}
+
+export async function sendCustomerReport(customerId: number) {
+  const response = await api.post<ApiResponse<ReportSendResult>>(
+    `/v1/reports/${customerId}/send`,
+  )
+
+  return response.data.data
+}
+
+export async function sendCustomerReportsInBulk() {
+  const response = await api.post<ApiResponse<ReportBulkSendResult>>(
+    '/v1/reports/send/bulk',
+  )
 
   return response.data.data
 }
