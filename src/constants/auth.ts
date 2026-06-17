@@ -1,9 +1,10 @@
 export const ACCESS_TOKEN_STORAGE_KEY = 'accessToken'
-export const REFRESH_TOKEN_STORAGE_KEY = 'refreshToken'
 export const USER_ID_STORAGE_KEY = 'userId'
 export const USER_ROLE_STORAGE_KEY = 'userRole'
 export const USER_NAME_STORAGE_KEY = 'userName'
-export const USER_BRANCH_STORAGE_KEY = 'userBranch'
+export const USER_BRANCH_ID_STORAGE_KEY = 'userBranchId'
+export const USER_BRANCH_NAME_STORAGE_KEY = 'userBranchName'
+export const USER_BRANCH_STORAGE_KEY = USER_BRANCH_NAME_STORAGE_KEY
 export const USER_REGION_STORAGE_KEY = 'userRegion'
 export const IS_FIRST_LOGIN_STORAGE_KEY = 'isFirstLogin'
 export const ADMIN_ROLE = 'ADMIN'

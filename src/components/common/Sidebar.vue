@@ -16,8 +16,8 @@ type SidebarItem = {
   to: string
 }
 
-const role = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
-const isLoggedIn = Boolean(localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY))
+const role = sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
+const isLoggedIn = Boolean(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || role)
 const isAdmin = isLoggedIn && role === ADMIN_ROLE
 const sidebarWidth = ref(208)
 const isResizing = ref(false)

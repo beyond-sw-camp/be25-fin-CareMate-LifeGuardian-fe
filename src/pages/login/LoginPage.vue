@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import axios from 'axios'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ADMIN_ROLE,
   SALES_ROLE,
   type UserRole,
-} from '../constants/auth'
+} from '../../constants/auth'
 import { login } from '@/api/auth'
+import FirstLoginModal from '@/components/auth/FirstLoginModal.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -17,9 +18,74 @@ const loginId = ref('')
 const password = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
+const isFirstLoginModalOpen = ref(false)
+const pendingLoginRole = ref<UserRole | null>(null)
 
 const moveToRoleHome = (role: UserRole) =>
   router.push(role === ADMIN_ROLE ? '/admin/dashboard' : '/sales/dashboard')
+
+onMounted(() => {
+  if (authStore.role === SALES_ROLE && authStore.isFirstLogin) {
+    pendingLoginRole.value = SALES_ROLE
+    isFirstLoginModalOpen.value = true
+  }
+})
+
+const normalizeTokenRole = (value: unknown): UserRole | null => {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const role = value.replace(/^ROLE_/, '').toUpperCase()
+
+  if (role === ADMIN_ROLE) {
+    return ADMIN_ROLE
+  }
+
+  if (role === SALES_ROLE || role === 'SALES') {
+    return SALES_ROLE
+  }
+
+  return null
+}
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  const payload = token.split('.')[1]
+
+  if (!payload) {
+    return null
+  }
+
+  try {
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      '=',
+    )
+
+    return JSON.parse(atob(paddedPayload)) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+const getRoleFromAccessToken = (token: string): UserRole | null => {
+  const payload = decodeJwtPayload(token)
+
+  if (!payload) {
+    return null
+  }
+
+  const role = normalizeTokenRole(payload.role)
+
+  if (role) {
+    return role
+  }
+
+  const roles = [payload.roles, payload.authorities].find(Array.isArray)
+
+  return roles?.map(normalizeTokenRole).find((role) => role !== null) ?? null
+}
 
 const submitLogin = async () => {
   errorMessage.value = ''
@@ -31,8 +97,24 @@ const submitLogin = async () => {
       password: password.value,
     })
 
-    authStore.setLoginInfo(result)
-    await moveToRoleHome(result.role)
+    const tokenRole = getRoleFromAccessToken(result.accessToken)
+
+    if (!tokenRole) {
+      throw new Error('INVALID_TOKEN_ROLE')
+    }
+
+    authStore.setLoginInfo({
+      ...result,
+      role: tokenRole,
+    })
+
+    if (tokenRole === SALES_ROLE && result.isFirstLogin) {
+      pendingLoginRole.value = tokenRole
+      isFirstLoginModalOpen.value = true
+      return
+    }
+
+    await moveToRoleHome(tokenRole)
   } catch (error) {
     errorMessage.value = axios.isAxiosError(error)
       ? error.response?.data?.message ?? '로그인에 실패했습니다.'
@@ -45,15 +127,21 @@ const submitLogin = async () => {
 const enterAsDevRole = (role: UserRole) => {
   authStore.setLoginInfo({
     accessToken: `dev-${role.toLowerCase()}-token`,
-    userId: role === ADMIN_ROLE ? '9000001' : '1000001',
+    userId: role === ADMIN_ROLE ? 9000001 : 1000001,
     role,
+    branchId: role === ADMIN_ROLE ? 1 : 2,
+    branchName: role === ADMIN_ROLE ? '강남지점' : '서울지점',
     name: role === ADMIN_ROLE ? '홍길동' : '김설계',
     isFirstLogin: false,
-    region: '',
-    branch: role === ADMIN_ROLE ? '강남지점' : '',
   })
 
   void moveToRoleHome(role)
+}
+
+const completeFirstLogin = async () => {
+  isFirstLoginModalOpen.value = false
+  pendingLoginRole.value = null
+  await router.push('/sales/dashboard')
 }
 </script>
 
@@ -96,6 +184,11 @@ const enterAsDevRole = (role: UserRole) => {
         </button>
       </div>
     </section>
+
+    <FirstLoginModal
+      :open="isFirstLoginModalOpen"
+      @completed="completeFirstLogin"
+    />
   </main>
 </template>
 

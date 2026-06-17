@@ -4,87 +4,104 @@ import { defineStore } from 'pinia'
 import {
   ACCESS_TOKEN_STORAGE_KEY,
   IS_FIRST_LOGIN_STORAGE_KEY,
-  USER_BRANCH_STORAGE_KEY,
+  USER_BRANCH_ID_STORAGE_KEY,
+  USER_BRANCH_NAME_STORAGE_KEY,
   USER_ID_STORAGE_KEY,
   USER_NAME_STORAGE_KEY,
-  USER_REGION_STORAGE_KEY,
   USER_ROLE_STORAGE_KEY,
   type UserRole,
 } from '@/constants/auth'
 
 export interface LoginInfo {
   accessToken: string
-  userId: string | number
-  role: UserRole
+  userId: number
   name: string
+  branchId: number
+  branchName: string
+  role: UserRole
   isFirstLogin: boolean
-  branch?: string
-  region?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const accessToken = ref(localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY))
-  const userId = ref(localStorage.getItem(USER_ID_STORAGE_KEY))
-  const role = ref(localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null)
-  const name = ref(localStorage.getItem(USER_NAME_STORAGE_KEY))
-  const isFirstLogin = ref(localStorage.getItem(IS_FIRST_LOGIN_STORAGE_KEY) === 'true')
-  const branch = ref(localStorage.getItem(USER_BRANCH_STORAGE_KEY))
-  const region = ref(localStorage.getItem(USER_REGION_STORAGE_KEY))
+  // sessionStorage: 로그인 세션 관련 정보
+  const accessToken = ref(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY))
+  const userId = ref(sessionStorage.getItem(USER_ID_STORAGE_KEY))
+  const role = ref(sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null)
+  const isFirstLogin = ref(
+    sessionStorage.getItem(IS_FIRST_LOGIN_STORAGE_KEY) === 'true',
+  )
 
-  const isAuthenticated = computed(() => Boolean(accessToken.value && role.value))
+  // localStorage: 화면 표시용 기본 사용자 정보
+  const name = ref(localStorage.getItem(USER_NAME_STORAGE_KEY))
+  const branchId = ref(localStorage.getItem(USER_BRANCH_ID_STORAGE_KEY))
+  const branchName = ref(localStorage.getItem(USER_BRANCH_NAME_STORAGE_KEY))
+
+  const isAuthenticated = computed(() => {
+    return Boolean(role.value)
+  })
 
   const setLoginInfo = (loginInfo: LoginInfo) => {
     accessToken.value = loginInfo.accessToken
     userId.value = String(loginInfo.userId)
     role.value = loginInfo.role
-    name.value = loginInfo.name
     isFirstLogin.value = loginInfo.isFirstLogin
-    branch.value = loginInfo.branch ?? ''
-    region.value = loginInfo.region ?? ''
 
-    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, loginInfo.accessToken)
-    localStorage.setItem(USER_ID_STORAGE_KEY, String(loginInfo.userId))
-    localStorage.setItem(USER_ROLE_STORAGE_KEY, loginInfo.role)
+    name.value = loginInfo.name
+    branchId.value = String(loginInfo.branchId)
+    branchName.value = loginInfo.branchName
+
+    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, loginInfo.accessToken)
+    sessionStorage.setItem(USER_ID_STORAGE_KEY, String(loginInfo.userId))
+    sessionStorage.setItem(USER_ROLE_STORAGE_KEY, loginInfo.role)
+    sessionStorage.setItem(IS_FIRST_LOGIN_STORAGE_KEY, String(loginInfo.isFirstLogin))
+
     localStorage.setItem(USER_NAME_STORAGE_KEY, loginInfo.name)
-    localStorage.setItem(IS_FIRST_LOGIN_STORAGE_KEY, String(loginInfo.isFirstLogin))
-    localStorage.setItem(USER_BRANCH_STORAGE_KEY, loginInfo.branch ?? '')
-    localStorage.setItem(USER_REGION_STORAGE_KEY, loginInfo.region ?? '')
+    localStorage.setItem(USER_BRANCH_ID_STORAGE_KEY, String(loginInfo.branchId))
+    localStorage.setItem(USER_BRANCH_NAME_STORAGE_KEY, loginInfo.branchName)
   }
 
   const setAccessToken = (token: string) => {
     accessToken.value = token
-    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token)
+    sessionStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token)
+  }
+
+  const completeFirstLogin = () => {
+    isFirstLogin.value = false
+    sessionStorage.setItem(IS_FIRST_LOGIN_STORAGE_KEY, 'false')
   }
 
   const logout = () => {
     accessToken.value = null
     userId.value = null
     role.value = null
-    name.value = null
     isFirstLogin.value = false
-    branch.value = null
-    region.value = null
 
-    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY)
-    localStorage.removeItem(USER_ID_STORAGE_KEY)
-    localStorage.removeItem(USER_ROLE_STORAGE_KEY)
+    name.value = null
+    branchId.value = null
+    branchName.value = null
+
+    sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY)
+    sessionStorage.removeItem(USER_ID_STORAGE_KEY)
+    sessionStorage.removeItem(USER_ROLE_STORAGE_KEY)
+    sessionStorage.removeItem(IS_FIRST_LOGIN_STORAGE_KEY)
+
     localStorage.removeItem(USER_NAME_STORAGE_KEY)
-    localStorage.removeItem(IS_FIRST_LOGIN_STORAGE_KEY)
-    localStorage.removeItem(USER_BRANCH_STORAGE_KEY)
-    localStorage.removeItem(USER_REGION_STORAGE_KEY)
+    localStorage.removeItem(USER_BRANCH_ID_STORAGE_KEY)
+    localStorage.removeItem(USER_BRANCH_NAME_STORAGE_KEY)
   }
 
   return {
     accessToken,
     userId,
-    role,
     name,
+    branchId,
+    branchName,
+    role,
     isFirstLogin,
-    branch,
-    region,
     isAuthenticated,
     setLoginInfo,
     setAccessToken,
+    completeFirstLogin,
     logout,
   }
 })
