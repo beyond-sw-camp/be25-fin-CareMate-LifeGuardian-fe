@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from 'axios'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import AppHeader from '../../components/common/Header.vue'
 import AppSidebar from '../../components/common/Sidebar.vue'
 import SalesPagination from '../../components/sales/SalesPagination.vue'
@@ -10,6 +10,7 @@ import SalesTable from '../../components/sales/SalesTable.vue'
 import {
   getSalesList,
   getSalesSummary,
+  resolveSalesCustomerStageCode,
   sendCustomerReport,
   sendCustomerReportsInBulk,
   type SalesCustomer,
@@ -30,13 +31,56 @@ const reportMessageType = ref<'success' | 'error'>('success')
 const sendingCustomerIds = ref<number[]>([])
 const isBulkSending = ref(false)
 const filters = ref<SalesSearchFilters>({})
+const activeCustomerType = ref<'' | '01' | '02'>('')
 let reportMessageTimer: ReturnType<typeof setTimeout> | undefined
 
+const customerTypeTabs = [
+  { label: '전체', value: '' },
+  { label: '잠재', value: '01' },
+  { label: '통합', value: '02' },
+] as const
+
+const customerStageMatches = (customer: SalesCustomer, stageCode: '01' | '02') => {
+  return resolveSalesCustomerStageCode(customer) === stageCode
+}
+
+const displayedCustomers = computed(() => {
+  const customerStageCode = activeCustomerType.value
+  const contractStatusCodes = filters.value.contractStatusCodes
+
+  return customers.value.filter((customer) => {
+    if (customerStageCode && !customerStageMatches(customer, customerStageCode)) {
+      return false
+    }
+
+    if (contractStatusCodes?.length && !customerStageMatches(customer, '02')) {
+      return false
+    }
+
+    if (
+      contractStatusCodes?.length &&
+      !contractStatusCodes.includes(customer.contractStatusCode ?? '')
+    ) {
+      return false
+    }
+
+    return true
+  })
+})
+
+const displayedTotalCount = computed(() =>
+  activeCustomerType.value || filters.value.contractStatusCodes?.length
+    ? displayedCustomers.value.length
+    : totalCount.value,
+)
+
+// KPI API가 요구하는 yyyyMM 형식으로 현재 연월을 생성
 const currentYearMonth = () => {
   const now = new Date()
   return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
+// Axios 응답에 서버 메시지가 있으면 화면 오류 문구로 우선 사용
 const getErrorMessage = (error: unknown, fallbackMessage = '영업현황을 불러오지 못했습니다.') => {
   if (axios.isAxiosError(error)) {
     return error.response?.data?.message ?? fallbackMessage
@@ -45,6 +89,7 @@ const getErrorMessage = (error: unknown, fallbackMessage = '영업현황을 불�
   return fallbackMessage
 }
 
+// KPI 조회 실패가 목록 조회를 막지 않도록 별도로 처리
 const loadSummary = async () => {
   try {
     summary.value = await getSalesSummary(currentYearMonth())
@@ -53,6 +98,7 @@ const loadSummary = async () => {
   }
 }
 
+// 현재 검색 조건을 유지하면서 요청한 페이지의 목록을 조회
 const loadSalesList = async (page = currentPage.value) => {
   isLoading.value = true
   errorMessage.value = ''
@@ -77,9 +123,17 @@ const loadSalesList = async (page = currentPage.value) => {
   }
 }
 
+// 새 검색을 실행하면 첫 페이지부터 다시 조회
 const handleSearch = (nextFilters: SalesSearchFilters) => {
   filters.value = nextFilters
+  if (nextFilters.contractStatusCodes?.length) {
+    activeCustomerType.value = '02'
+  }
   void loadSalesList(1)
+}
+
+const handleCustomerTypeChange = (value: '' | '01' | '02') => {
+  activeCustomerType.value = value
 }
 
 const showReportMessage = (message: string, type: 'success' | 'error') => {
@@ -146,6 +200,7 @@ const handleBulkSend = async () => {
 }
 
 onMounted(() => {
+  // 서로 독립적인 KPI와 목록 API를 동시에 호출
   void Promise.all([loadSummary(), loadSalesList(1)])
 })
 
@@ -159,30 +214,37 @@ onBeforeUnmount(() => {
     <AppSidebar active-label="영업현황" />
 
     <main class="app-main sales-page__main">
-      <AppHeader title="영업현황" />
+      <AppHeader title="영업현황">
+        <template #actions>
+          <button
+            class="button button-secondary sales-list__criteria-button"
+            type="button"
+            @click="isCriteriaModalOpen = true"
+          >
+            표시기준 안내
+          </button>
+        </template>
+      </AppHeader>
 
       <SalesSummary :summary="summary" />
       <SalesSearchForm @search="handleSearch" />
 
       <section class="card sales-list">
         <div class="sales-list__header">
-          <h3 class="sales-section-title">목록 <span class="sales-list__count">총 {{ totalCount }}건</span></h3>
+          <h3 class="sales-section-title">목록 <span class="sales-list__count">총 {{ displayedTotalCount }}건</span></h3>
           <div class="sales-list__actions">
-            <button
-              class="button button-secondary sales-list__criteria-button"
-              type="button"
-              @click="isCriteriaModalOpen = true"
-            >
-              표시기준 안내
-            </button>
-            <button
-              class="button button-primary sales-list__bulk-button"
-              type="button"
-              :disabled="isBulkSending"
-              @click="handleBulkSend"
-            >
-              {{ isBulkSending ? '발송 중...' : '일괄 발송' }}
-            </button>
+            <div class="customer-type-tabs" aria-label="고객 유형 필터">
+              <button
+                v-for="tab in customerTypeTabs"
+                :key="tab.value || 'all'"
+                class="customer-type-tabs__button"
+                :class="{ 'is-active': activeCustomerType === tab.value }"
+                type="button"
+                @click="handleCustomerTypeChange(tab.value)"
+              >
+                {{ tab.label }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -198,8 +260,10 @@ onBeforeUnmount(() => {
         <p v-else-if="isLoading" class="sales-list__message">불러오는 중...</p>
         <SalesTable
           v-else
-          :customers="customers"
+          :customers="displayedCustomers"
           :sending-customer-ids="sendingCustomerIds"
+          :is-bulk-sending="isBulkSending"
+          @bulk-send="handleBulkSend"
           @send-report="handleSendReport"
         />
         <SalesPagination
@@ -219,9 +283,8 @@ onBeforeUnmount(() => {
       <section class="modal-card sales-criteria-modal__card" role="dialog" aria-modal="true" aria-labelledby="criteria-modal-title">
         <header class="sales-criteria-modal__header">
           <div>
-            <span class="sales-criteria-modal__eyebrow">SALES GUIDE</span>
-            <h3 id="criteria-modal-title">표시 기준 안내</h3>
-            <p>영업현황 목록의 강조 표시와 배지 기준입니다.</p>
+            <p class="sales-criteria-modal__eyebrow">영업현황</p>
+            <h3 id="criteria-modal-title">표시기준 안내</h3>
           </div>
           <button class="sales-criteria-modal__close" type="button" aria-label="닫기" @click="isCriteriaModalOpen = false">
             x
@@ -291,9 +354,7 @@ onBeforeUnmount(() => {
         </div>
 
         <footer class="sales-criteria-modal__footer">
-          <button class="button button-primary" type="button" @click="isCriteriaModalOpen = false">
-            확인
-          </button>
+          <button class="button button-primary" type="button" @click="isCriteriaModalOpen = false">확인</button>
         </footer>
       </section>
     </div>
@@ -370,12 +431,42 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.sales-list__bulk-button,
 .sales-list__criteria-button {
   min-height: 28px;
   border-radius: 6px;
   padding: 0 12px;
   font-size: 11px;
+}
+
+.customer-type-tabs {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  background: #f7f9fc;
+  padding: 3px;
+}
+
+.customer-type-tabs__button {
+  min-width: 48px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7483;
+  padding: 0 11px;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.customer-type-tabs__button:hover {
+  color: #263142;
+}
+
+.customer-type-tabs__button.is-active {
+  background: #ffffff;
+  color: var(--color-primary);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
 }
 
 .sales-criteria-modal {
@@ -404,26 +495,18 @@ onBeforeUnmount(() => {
 }
 
 .sales-criteria-modal__eyebrow {
-  display: block;
-  margin-bottom: 5px;
-  color: #4389e8;
-  font-size: 10px;
+  margin: 0 0 4px;
+  color: var(--color-primary);
+  font-size: 12px;
   font-weight: 900;
-  letter-spacing: 0.12em;
 }
 
 .sales-criteria-modal__header h3 {
   margin: 0;
-  color: #172033;
-  font-size: 23px;
+  color: var(--color-text);
+  font-size: 19px;
   font-weight: 900;
   letter-spacing: 0;
-}
-
-.sales-criteria-modal__header p {
-  margin: 5px 0 0;
-  color: #7b8495;
-  font-size: 12px;
 }
 
 .sales-criteria-modal__close {
@@ -612,18 +695,5 @@ onBeforeUnmount(() => {
   border-top: 1px solid #edf0f5;
   background: #fbfcfe;
   padding: 14px 28px 18px;
-}
-
-.sales-criteria-modal__footer .button {
-  min-width: 84px;
-  min-height: 34px;
-  border-radius: 9px;
-  font-size: 12px;
-}
-
-@media (max-width: 560px) {
-  .criteria-age-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
