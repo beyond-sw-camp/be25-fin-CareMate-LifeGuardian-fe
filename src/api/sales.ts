@@ -106,10 +106,8 @@ export interface SalesSearchParams {
   size: number
 }
 
-// 검색 폼에서는 페이지 정보를 제외한 필터 조건만 관리
 export type SalesSearchFilters = Omit<SalesSearchParams, 'page' | 'size'>
 
-// 선택한 연월의 계약 목표와 달성률을 조회한다.
 export async function getSalesSummary(targetYearMonth: string) {
   const response = await api.get<ApiResponse<SalesSummary>>('/v1/sales/performance/summary', {
     params: { targetYearMonth },
@@ -119,7 +117,6 @@ export async function getSalesSummary(targetYearMonth: string) {
 }
 
 export async function getSalesList(params: SalesSearchParams) {
-  // Spring의 List 파라미터가 받을 수 있도록 상태 코드를 쉼표 구분 문자열로 변환
   const requestParams = {
     ...params,
     contractStatusCodes: params.contractStatusCodes?.join(','),
@@ -132,13 +129,17 @@ export async function getSalesList(params: SalesSearchParams) {
 }
 
 export async function sendCustomerReport(customerId: number) {
-  const response = await api.post<ApiResponse<ReportSendResult>>(`/v1/reports/${customerId}/send`)
+  const response = await api.post<ApiResponse<ReportSendResult>>(
+    `/v1/reports/${customerId}/send`,
+  )
 
   return response.data.data
 }
 
 export async function sendCustomerReportsInBulk() {
-  const response = await api.post<ApiResponse<ReportBulkSendResult>>('/v1/reports/send/bulk')
+  const response = await api.post<ApiResponse<ReportBulkSendResult>>(
+    '/v1/reports/send/bulk',
+  )
 
   return response.data.data
 }

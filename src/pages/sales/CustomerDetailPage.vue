@@ -5,16 +5,16 @@ import AppSidebar from '../../components/common/Sidebar.vue'
 
 <template>
   <div class="app-shell">
-    <AppSidebar active-label="잠재고객 관리" />
+    <AppSidebar active-label="영업현황" />
 
-    <main class="app-main page-placeholder">
-      <AppHeader title="잠재고객 관리" />
+    <main class="app-main customer-detail-page">
+      <AppHeader title="고객 상세" />
     </main>
   </div>
 </template>
 
 <style scoped>
-.page-placeholder {
-  padding: 24px 28px;
+.customer-detail-page {
+  padding: 16px 28px 8px 25px;
 }
 </style>

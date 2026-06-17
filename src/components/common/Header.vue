@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { logout as logoutApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
@@ -9,10 +11,22 @@ const props = defineProps<{
 
 const router = useRouter()
 const authStore = useAuthStore()
+const isLoggingOut = ref(false)
 
-const logout = () => {
-  authStore.logout()
-  router.push('/login')
+const logout = async () => {
+  if (isLoggingOut.value) return
+
+  isLoggingOut.value = true
+
+  try {
+    await logoutApi()
+  } catch {
+    // 서버 로그아웃 실패와 관계없이 프론트 세션은 종료한다.
+  } finally {
+    authStore.logout()
+    isLoggingOut.value = false
+    void router.push('/login')
+  }
 }
 </script>
 
@@ -25,7 +39,14 @@ const logout = () => {
 
     <div class="app-header__user">
       <slot name="actions"></slot>
-      <button class="app-header__logout" type="button" @click="logout">로그아웃</button>
+      <button
+        class="app-header__logout"
+        type="button"
+        :disabled="isLoggingOut"
+        @click="logout"
+      >
+        로그아웃
+      </button>
     </div>
   </header>
 </template>
@@ -66,6 +87,11 @@ const logout = () => {
 .app-header__logout:hover {
   border-color: #94a3b8;
   background: #f8fafc;
+}
+
+.app-header__logout:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 @media (max-width: 760px) {

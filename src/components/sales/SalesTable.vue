@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+
 import {
   resolveSalesCustomerStageCode,
   resolveSalesCustomerStageName,
@@ -8,15 +10,15 @@ import {
 const props = defineProps<{
   customers: SalesCustomer[]
   sendingCustomerIds?: number[]
-  isBulkSending?: boolean
 }>()
 
 const emit = defineEmits<{
   sendReport: [customer: SalesCustomer]
-  bulkSend: []
 }>()
 
 const SENDABLE_REPORT_STATUS_CODES = new Set(['01', '02', '03'])
+const selectedCustomerIds = ref<number[]>([])
+const selectAllCheckbox = ref<HTMLInputElement | null>(null)
 
 const isSending = (customerId: number) => props.sendingCustomerIds?.includes(customerId) ?? false
 const canShowSendButton = (customer: SalesCustomer) =>
@@ -28,14 +30,48 @@ const sendButtonLabel = (customer: SalesCustomer) => {
   if (isSending(customer.customerId)) return '발송 중'
   return customer.reportStatusCode === '02' ? '재발송' : '발송'
 }
-// 백엔드 성별 코드와 영문 값을 화면 표시값으로 변환한다.
+
+const isAllSelected = computed(
+  () =>
+    props.customers.length > 0 &&
+    props.customers.every((customer) => selectedCustomerIds.value.includes(customer.customerId)),
+)
+const isPartiallySelected = computed(
+  () => selectedCustomerIds.value.length > 0 && !isAllSelected.value,
+)
+
+const toggleAllCustomers = () => {
+  selectedCustomerIds.value = isAllSelected.value
+    ? []
+    : props.customers.map((customer) => customer.customerId)
+}
+
+watch(
+  () => props.customers,
+  (customers) => {
+    const visibleCustomerIds = new Set(customers.map((customer) => customer.customerId))
+    selectedCustomerIds.value = selectedCustomerIds.value.filter((customerId) =>
+      visibleCustomerIds.has(customerId),
+    )
+  },
+)
+
+watch(
+  isPartiallySelected,
+  (isIndeterminate) => {
+    if (selectAllCheckbox.value) {
+      selectAllCheckbox.value.indeterminate = isIndeterminate
+    }
+  },
+  { immediate: true },
+)
+
 const genderLabel = (gender: string) => {
-  if (gender === 'MALE' || gender === 'M') return '남'
-  if (gender === 'FEMALE' || gender === 'F') return '여'
+  if (gender === 'MALE' || gender === 'Male' || gender === 'M' || gender === '남') return '남'
+  if (gender === 'FEMALE' || gender === 'Female' || gender === 'F' || gender === '여') return '여'
   return gender
 }
 
-// 계약 상태 코드에 대응하는 배지 색상 클래스를 결정한다.
 const contractClass = (statusCode?: string) => {
   const classMap: Record<string, string> = {
     '01': 'warning',
@@ -48,7 +84,31 @@ const contractClass = (statusCode?: string) => {
   return statusCode ? classMap[statusCode] ?? 'muted' : 'danger-soft'
 }
 
-// 상령일 임박 고객을 우선순위 색상으로 표시한다.
+const calculateAgeShiftDDay = (ageShiftDate?: string) => {
+  if (!ageShiftDate) return undefined
+
+  const targetDate = new Date(`${ageShiftDate}T00:00:00`)
+  if (Number.isNaN(targetDate.getTime())) return undefined
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  return Math.ceil((targetDate.getTime() - today.getTime()) / 86_400_000)
+}
+
+const ageShiftRowClass = (ageShiftDate?: string) => {
+  const dDay = calculateAgeShiftDDay(ageShiftDate)
+  if (dDay === undefined || dDay < 0 || dDay > 30) return undefined
+  return dDay <= 7 ? 'sales-table__row--age-shift-near' : 'sales-table__row--age-shift-warning'
+}
+
+const ageShiftGuide = (ageShiftDate?: string) => {
+  const dDay = calculateAgeShiftDDay(ageShiftDate)
+  if (dDay === undefined || dDay < 0 || dDay > 30) return undefined
+  if (dDay === 0) return '상령일 도래 D-Day'
+  return dDay <= 7 ? `상령일 임박 D-${dDay}` : `상령일 도래 예정 D-${dDay}`
+}
+
 const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 </script>
 
@@ -57,7 +117,16 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
     <table>
       <thead>
         <tr>
-          <th><input type="checkbox" /></th>
+          <th>
+            <input
+              ref="selectAllCheckbox"
+              type="checkbox"
+              :checked="isAllSelected"
+              :disabled="customers.length === 0"
+              aria-label="현재 목록 전체 선택"
+              @change="toggleAllCustomers"
+            />
+          </th>
           <th>고객명</th>
           <th>성별</th>
           <th>만 나이</th>
@@ -67,26 +136,30 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <th>계약 현황</th>
           <th>보험명</th>
           <th>피보험자</th>
-          <th>웹폼 회수일</th>
+          <th>납입 회수일</th>
           <th>리포트 발송상태</th>
-          <th>
-            <button
-              class="bulk-send-button"
-              type="button"
-              :disabled="props.isBulkSending"
-              @click="emit('bulkSend')"
-            >
-              {{ props.isBulkSending ? '발송 중' : '일괄 발송' }}
-            </button>
-          </th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="customer in customers" :key="customer.customerId">
-          <td><input type="checkbox" /></td>
+        <tr
+          v-for="customer in customers"
+          :key="customer.customerId"
+          :class="ageShiftRowClass(customer.insuranceAgeShiftDate)"
+        >
+          <td>
+            <input
+              v-model="selectedCustomerIds"
+              type="checkbox"
+              :value="customer.customerId"
+              :aria-label="`${customer.customerName} 선택`"
+            />
+          </td>
           <td>
             <RouterLink
               class="customer-name"
+              :class="{ 'customer-name--age-shift': ageShiftGuide(customer.insuranceAgeShiftDate) }"
+              :tabindex="ageShiftGuide(customer.insuranceAgeShiftDate) ? 0 : undefined"
               :to="{
                 name: 'user-detail',
                 params: { customerId: customer.customerId },
@@ -94,6 +167,13 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
               }"
             >
               {{ customer.customerName }}
+              <span
+                v-if="ageShiftGuide(customer.insuranceAgeShiftDate)"
+                class="customer-name__tooltip"
+                role="tooltip"
+              >
+                {{ ageShiftGuide(customer.insuranceAgeShiftDate) }}
+              </span>
             </RouterLink>
           </td>
           <td>{{ genderLabel(customer.gender) }}</td>
@@ -117,7 +197,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <td>{{ customer.insuranceName }}</td>
           <td>{{ customer.insuredName }}</td>
           <td>{{ customer.webformReceivedAt }}</td>
-          <td>{{ customer.reportStatusName }}</td>
+          <td class="report-status">{{ customer.reportStatusName }}</td>
           <td>
             <button
               class="report-button"
@@ -140,7 +220,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 
 <style scoped>
 .sales-table {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid #dfe4ec;
 }
 
@@ -184,14 +264,76 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
   margin: 0;
 }
 
+.sales-table tbody tr.sales-table__row--age-shift-warning .customer-name {
+  text-decoration-color: rgb(251 146 60 / 42%);
+}
+
+.sales-table tbody tr.sales-table__row--age-shift-near .customer-name {
+  text-decoration-color: rgb(250 204 21 / 48%);
+}
+
+.sales-table tbody tr.sales-table__row--age-shift-warning .customer-name,
+.sales-table tbody tr.sales-table__row--age-shift-near .customer-name {
+  text-decoration-line: underline;
+  text-decoration-skip-ink: none;
+  text-decoration-thickness: 0.62em;
+  text-underline-offset: -0.3em;
+}
+
 .customer-name {
-  color: #273248;
-  font-weight: 800;
+  position: relative;
+  display: inline-block;
+  color: inherit;
+  font-weight: 700;
 }
 
 .customer-name:hover {
   color: var(--color-primary);
-  text-decoration: underline;
+}
+
+.customer-name--age-shift {
+  outline: none;
+}
+
+.customer-name__tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  z-index: 10;
+  width: max-content;
+  max-width: 160px;
+  visibility: hidden;
+  border-radius: 6px;
+  background: #273043;
+  color: #ffffff;
+  opacity: 0;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+  pointer-events: none;
+  transform: translate(-50%, 3px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms ease;
+}
+
+.customer-name__tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 4px solid transparent;
+  border-top-color: #273043;
+  content: '';
+  transform: translateX(-50%);
+}
+
+.customer-name--age-shift:hover .customer-name__tooltip,
+.customer-name--age-shift:focus .customer-name__tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .step-dot {
@@ -269,19 +411,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
   color: #ffffff;
 }
 
-.bulk-send-button {
-  min-width: 64px;
-  height: 24px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: #273248;
-  color: #ffffff;
-  padding: 0 10px;
-  font-size: 10px;
-  font-weight: 850;
-}
-
-.bulk-send-button:disabled {
-  background: #aeb6c2;
+.report-status {
+  font-weight: 400;
 }
 </style>
