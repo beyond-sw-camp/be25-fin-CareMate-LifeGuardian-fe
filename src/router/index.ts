@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import {
   ACCESS_TOKEN_STORAGE_KEY,
   ADMIN_ROLE,
+  IS_FIRST_LOGIN_STORAGE_KEY,
   SALES_ROLE,
   USER_ROLE_STORAGE_KEY,
   type UserRole,
@@ -10,7 +11,7 @@ import AdminAuditPage from '../pages/admin/AdminAuditPage.vue'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.vue'
 import AdminEsgPage from '../pages/admin/AdminEsgPage.vue'
 import AdminMembersPage from '../pages/admin/AdminMembersPage.vue'
-import LoginPage from '../pages/LoginPage.vue'
+import LoginPage from '../pages/login/LoginPage.vue'
 import CustomerDetailPage from '../pages/sales/CustomerDetailPage.vue'
 import PotentialPage from '../pages/sales/PotentialPage.vue'
 import SalesDashboardPage from '../pages/sales/SalesDashboardPage.vue'
@@ -27,7 +28,7 @@ const router = createRouter({
     {
       path: '/',
       redirect: () => {
-        const role = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
+        const role = sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
         return role && roleHomeMap[role] ? roleHomeMap[role] : '/login'
       },
     },
@@ -39,7 +40,7 @@ const router = createRouter({
     {
       path: '/dashboard',
       redirect: () => {
-        const role = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
+        const role = sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
         return role && roleHomeMap[role] ? roleHomeMap[role] : '/login'
       },
     },
@@ -111,18 +112,34 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const hasToken = Boolean(localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY))
-  const role = localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
+  const hasToken = Boolean(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY))
+  const role = sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
   const allowedRoles = to.meta.allowedRoles as UserRole[] | undefined
 
   if (!allowedRoles) {
     return
   }
 
-  if (!hasToken || !role) {
+  if (!hasToken && !role) {
     return {
       path: '/login',
       query: {
+        redirect: to.fullPath,
+      },
+    }
+  }
+
+  if (!role) {
+    return '/login'
+  }
+
+  const isFirstLogin = sessionStorage.getItem(IS_FIRST_LOGIN_STORAGE_KEY) === 'true'
+
+  if (role === SALES_ROLE && isFirstLogin) {
+    return {
+      path: '/login',
+      query: {
+        firstLogin: 'true',
         redirect: to.fullPath,
       },
     }
