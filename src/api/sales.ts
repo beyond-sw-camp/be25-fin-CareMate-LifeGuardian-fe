@@ -11,11 +11,15 @@ export interface SalesSummary {
 export interface SalesCustomer {
   customerId: number
   customerName: string
+  statusCode?: '01' | '02' | string
+  statusName?: string
+  customerStageCode?: '01' | '02' | string
+  customerStageName?: string
+  conversionStatusCode?: '01' | '02' | string
+  conversionStatusName?: string
   gender: string
   age: number
   birthDate: string
-  customerStageCode: string
-  customerStageName: string
   insuranceAgeShiftDate?: string
   ageIncreaseDDay?: number
   threeStepCode?: string
@@ -36,12 +40,59 @@ export interface SalesCustomer {
   sortRank: number
 }
 
+export type SalesCustomerStageCode = '01' | '02'
+
+const CUSTOMER_STAGE_NAMES: Record<SalesCustomerStageCode, string> = {
+  '01': '잠재 고객',
+  '02': '통합 고객',
+}
+
+const isSalesCustomerStageCode = (code?: string): code is SalesCustomerStageCode =>
+  code === '01' || code === '02'
+
+const resolveCustomerStageNameCandidate = (customer: SalesCustomer) =>
+  customer.customerStageName ?? customer.conversionStatusName ?? customer.statusName
+
+export const resolveSalesCustomerStageCode = (customer: SalesCustomer): SalesCustomerStageCode | '' => {
+  const code = customer.customerStageCode ?? customer.conversionStatusCode ?? customer.statusCode
+  if (isSalesCustomerStageCode(code)) return code
+
+  const name = resolveCustomerStageNameCandidate(customer)
+  if (name?.includes('잠재')) return '01'
+  if (name?.includes('통합')) return '02'
+
+  return ''
+}
+
+export const resolveSalesCustomerStageName = (customer: SalesCustomer) => {
+  const name = resolveCustomerStageNameCandidate(customer)
+  if (name) return name
+
+  const code = resolveSalesCustomerStageCode(customer)
+  return code ? CUSTOMER_STAGE_NAMES[code] : '-'
+}
+
 export interface SalesPage {
   page: number
   size: number
   totalCount: number
   totalPages: number
   items: SalesCustomer[]
+}
+
+export interface ReportSendResult {
+  customerId: number
+  customerName: string
+  sendStatusCode: string
+  sendStatusName: string
+  sentAt: string
+}
+
+export interface ReportBulkSendResult {
+  requestedCount: number
+  successCount: number
+  failedCount: number
+  sentAt: string
 }
 
 export interface SalesSearchParams {
@@ -76,6 +127,18 @@ export async function getSalesList(params: SalesSearchParams) {
   const response = await api.get<ApiResponse<SalesPage>>('/v1/sales/performance/contracts', {
     params: requestParams,
   })
+
+  return response.data.data
+}
+
+export async function sendCustomerReport(customerId: number) {
+  const response = await api.post<ApiResponse<ReportSendResult>>(`/v1/reports/${customerId}/send`)
+
+  return response.data.data
+}
+
+export async function sendCustomerReportsInBulk() {
+  const response = await api.post<ApiResponse<ReportBulkSendResult>>('/v1/reports/send/bulk')
 
   return response.data.data
 }

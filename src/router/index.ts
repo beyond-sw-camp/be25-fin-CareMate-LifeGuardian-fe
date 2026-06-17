@@ -11,6 +11,7 @@ import AdminDashboardPage from '../pages/admin/AdminDashboardPage.vue'
 import AdminEsgPage from '../pages/admin/AdminEsgPage.vue'
 import AdminMembersPage from '../pages/admin/AdminMembersPage.vue'
 import LoginPage from '../pages/LoginPage.vue'
+import UserDetailPage from '../pages/userDetail/UserDetailPage.vue'
 import PotentialPage from '../pages/sales/PotentialPage.vue'
 import SalesDashboardPage from '../pages/sales/SalesDashboardPage.vue'
 import SalesPage from '../pages/sales/SalesPage.vue'
@@ -54,6 +55,14 @@ const router = createRouter({
       path: '/sales',
       name: 'sales',
       component: SalesPage,
+      meta: {
+        allowedRoles: [SALES_ROLE],
+      },
+    },
+    {
+      path: '/user-detail/:customerId',
+      name: 'user-detail',
+      component: UserDetailPage,
       meta: {
         allowedRoles: [SALES_ROLE],
       },

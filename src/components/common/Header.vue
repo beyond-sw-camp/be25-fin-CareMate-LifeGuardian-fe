@@ -24,6 +24,7 @@ const logout = () => {
     </div>
 
     <div class="app-header__user">
+      <slot name="actions"></slot>
       <button class="app-header__logout" type="button" @click="logout">로그아웃</button>
     </div>
   </header>
@@ -47,6 +48,7 @@ const logout = () => {
 .app-header__user {
   display: flex;
   align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 

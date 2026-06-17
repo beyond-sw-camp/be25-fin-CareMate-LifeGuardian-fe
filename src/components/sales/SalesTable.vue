@@ -1,14 +1,37 @@
 <script setup lang="ts">
-import type { SalesCustomer } from '@/api/sales'
+import {
+  resolveSalesCustomerStageCode,
+  resolveSalesCustomerStageName,
+  type SalesCustomer,
+} from '@/api/sales'
 
-defineProps<{
+const props = defineProps<{
   customers: SalesCustomer[]
+  sendingCustomerIds?: number[]
+  isBulkSending?: boolean
 }>()
 
+const emit = defineEmits<{
+  sendReport: [customer: SalesCustomer]
+  bulkSend: []
+}>()
+
+const SENDABLE_REPORT_STATUS_CODES = new Set(['01', '02', '03'])
+
+const isSending = (customerId: number) => props.sendingCustomerIds?.includes(customerId) ?? false
+const canShowSendButton = (customer: SalesCustomer) =>
+  customer.hasReport &&
+  Boolean(customer.reportStatusCode) &&
+  SENDABLE_REPORT_STATUS_CODES.has(customer.reportStatusCode!) &&
+  (customer.canSendReport || customer.reportStatusCode === '02')
+const sendButtonLabel = (customer: SalesCustomer) => {
+  if (isSending(customer.customerId)) return '발송 중'
+  return customer.reportStatusCode === '02' ? '재발송' : '발송'
+}
 // 백엔드 성별 코드와 영문 값을 화면 표시값으로 변환한다.
 const genderLabel = (gender: string) => {
-  if (gender === 'Male' || gender === 'M') return '남'
-  if (gender === 'Female' || gender === 'F') return '여'
+  if (gender === 'MALE' || gender === 'M') return '남'
+  if (gender === 'FEMALE' || gender === 'F') return '여'
   return gender
 }
 
@@ -44,15 +67,35 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <th>계약 현황</th>
           <th>보험명</th>
           <th>피보험자</th>
-          <th>납입 회수일</th>
-          <th>리포트</th>
-          <th></th>
+          <th>웹폼 회수일</th>
+          <th>리포트 발송상태</th>
+          <th>
+            <button
+              class="bulk-send-button"
+              type="button"
+              :disabled="props.isBulkSending"
+              @click="emit('bulkSend')"
+            >
+              {{ props.isBulkSending ? '발송 중' : '일괄 발송' }}
+            </button>
+          </th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="customer in customers" :key="customer.customerId">
           <td><input type="checkbox" /></td>
-          <td>{{ customer.customerName }}</td>
+          <td>
+            <RouterLink
+              class="customer-name"
+              :to="{
+                name: 'user-detail',
+                params: { customerId: customer.customerId },
+                query: { conversionStatusCode: resolveSalesCustomerStageCode(customer) },
+              }"
+            >
+              {{ customer.customerName }}
+            </RouterLink>
+          </td>
           <td>{{ genderLabel(customer.gender) }}</td>
           <td>{{ customer.age }}</td>
           <td>{{ customer.birthDate }}</td>
@@ -65,7 +108,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
             ></span>
             <span v-else>-</span>
           </td>
-          <td>{{ customer.customerStageName }}</td>
+          <td>{{ resolveSalesCustomerStageName(customer) }}</td>
           <td>
             <span class="contract-badge" :class="`contract-badge--${contractClass(customer.contractStatusCode)}`">
               {{ customer.contractStatusName }}
@@ -76,7 +119,15 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <td>{{ customer.webformReceivedAt }}</td>
           <td>{{ customer.reportStatusName }}</td>
           <td>
-            <button v-if="customer.canSendReport" class="report-button" type="button">발송</button>
+            <button
+              class="report-button"
+              :class="{ 'report-button--disabled': !canShowSendButton(customer) }"
+              type="button"
+              :disabled="!canShowSendButton(customer) || isSending(customer.customerId)"
+              @click="emit('sendReport', customer)"
+            >
+              {{ canShowSendButton(customer) ? sendButtonLabel(customer) : '발송' }}
+            </button>
           </td>
         </tr>
         <tr v-if="customers.length === 0">
@@ -99,16 +150,16 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 
 .sales-table th,
 .sales-table td {
-  height: 30px;
+  height: 38px;
   border-bottom: 1px solid #e7ebf1;
-  padding: 0 8px;
+  padding: 0 10px;
   text-align: center;
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .sales-table th {
-  height: 29px;
+  height: 34px;
   background: #eef1f6;
   font-weight: 800;
 }
@@ -128,9 +179,19 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 }
 
 .sales-table input[type='checkbox'] {
-  width: 11px;
-  height: 11px;
+  width: 13px;
+  height: 13px;
   margin: 0;
+}
+
+.customer-name {
+  color: #273248;
+  font-weight: 800;
+}
+
+.customer-name:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 .step-dot {
@@ -153,53 +214,74 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  height: 16px;
+  min-width: 48px;
+  height: 22px;
   border-radius: var(--radius-pill);
-  padding: 0 6px;
-  font-size: 9px;
+  padding: 0 10px;
+  font-size: 11px;
   font-weight: 800;
 }
 
 .contract-badge--danger-soft {
-  background: #ffd9df;
-  color: #d85a65;
+  background: #f5e8ea;
+  color: #9f4b58;
 }
 
 .contract-badge--muted {
-  background: #dbe0e7;
-  color: #767f8e;
+  background: #edf1f5;
+  color: #657386;
 }
 
 .contract-badge--warning {
-  background: #f9e64a;
-  color: #788000;
+  background: #fff4d7;
+  color: #8a6412;
 }
 
 .contract-badge--danger {
-  background: #ff6969;
-  color: #ffffff;
+  background: #ffe4e6;
+  color: #b23b49;
 }
 
 .contract-badge--success {
-  background: #63df5b;
-  color: #ffffff;
+  background: #ddf7e7;
+  color: #24723b;
 }
 
 .contract-badge--blue {
-  background: #9fc9ff;
-  color: #2765b3;
+  background: #e3efff;
+  color: #285fba;
 }
 
 .report-button {
-  min-width: 27px;
-  height: 16px;
+  min-width: 52px;
+  height: 26px;
   border: 0;
   border-radius: var(--radius-pill);
   background: #4e63e6;
   color: #ffffff;
-  padding: 0 7px;
-  font-size: 9px;
+  padding: 0 12px;
+  font-size: 11px;
   font-weight: 800;
+}
+
+.report-button--disabled {
+  background: #c5cad3;
+  color: #ffffff;
+}
+
+.bulk-send-button {
+  min-width: 64px;
+  height: 24px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: #273248;
+  color: #ffffff;
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.bulk-send-button:disabled {
+  background: #aeb6c2;
 }
 </style>

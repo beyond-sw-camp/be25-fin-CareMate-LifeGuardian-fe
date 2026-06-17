@@ -59,15 +59,17 @@ const reset = () => {
       </fieldset>
     </div>
 
-    <div class="sales-search__row">
+    <div class="sales-search__row sales-search__row--filters">
       <span class="sales-search__label">계약 현황</span>
-      <label><input v-model="form.contractStatusCodes" type="checkbox" value="01" /> 설계중</label>
-      <label><input v-model="form.contractStatusCodes" type="checkbox" value="02" /> 설계완료</label>
-      <label><input v-model="form.contractStatusCodes" type="checkbox" value="03" /> 청약중</label>
-      <label><input v-model="form.contractStatusCodes" type="checkbox" value="04" /> 청약완료</label>
-      <label><input v-model="form.contractStatusCodes" type="checkbox" value="05" /> 수납완료</label>
-      <label><input v-model="form.hasReport" type="checkbox" /> 리포트</label>
-      <label><input v-model="form.hasThreeStep" type="checkbox" /> 3-Step 발송</label>
+      <div class="sales-search__options">
+        <label><input v-model="form.contractStatusCodes" type="checkbox" value="01" /> 설계중</label>
+        <label><input v-model="form.contractStatusCodes" type="checkbox" value="02" /> 설계완료</label>
+        <label><input v-model="form.contractStatusCodes" type="checkbox" value="03" /> 청약중</label>
+        <label><input v-model="form.contractStatusCodes" type="checkbox" value="04" /> 청약완료</label>
+        <label><input v-model="form.contractStatusCodes" type="checkbox" value="05" /> 수납완료</label>
+        <label><input v-model="form.hasReport" type="checkbox" /> 리포트</label>
+        <label><input v-model="form.hasThreeStep" type="checkbox" /> 3-Step</label>
+      </div>
 
       <div class="sales-search__actions">
         <button class="button button-primary sales-search__button" type="submit">조회</button>
@@ -79,9 +81,8 @@ const reset = () => {
 
 <style scoped>
 .sales-search {
-  min-height: 134px;
   margin-bottom: 17px;
-  padding: 14px 17px;
+  padding: 14px 17px 16px;
 }
 
 .sales-section-title {
@@ -95,22 +96,22 @@ const reset = () => {
   display: grid;
   align-items: center;
   min-height: 32px;
-  padding-left: 20px;
+  color: #394252;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .sales-search__row--top {
-  grid-template-columns: minmax(260px, 1fr) minmax(210px, 0.8fr) 170px;
-  column-gap: 42px;
-  margin-bottom: 14px;
+  grid-template-columns: minmax(250px, 300px) minmax(200px, 240px) minmax(150px, 180px);
+  column-gap: 22px;
+  margin-bottom: 12px;
 }
 
 .sales-search__field {
   display: grid;
-  grid-template-columns: 66px minmax(0, 200px);
+  grid-template-columns: 58px minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
+  gap: 8px;
 }
 
 .sales-search__field--age {
@@ -118,70 +119,101 @@ const reset = () => {
 }
 
 .sales-search__input {
-  width: 200px;
-  height: 21px;
-  border: 1px solid #d7dbe2;
-  background: #f7f7f8;
-  padding: 0 12px;
+  width: 100%;
+  height: 30px;
+  border: 1px solid #d9e0ea;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 0 10px;
   color: var(--color-text);
-  font-size: 11px;
+  font-size: 12px;
   outline: none;
 }
 
+.sales-search__input:focus {
+  border-color: #8db5ff;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgb(26 109 255 / 10%);
+}
+
 .sales-search__input::placeholder {
-  color: #c3c7cf;
+  color: #a6afbd;
 }
 
 .sales-search__gender {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   border: 0;
   margin: 0;
   padding: 0;
+  white-space: nowrap;
 }
 
 .sales-search__gender legend {
   float: left;
-  margin-right: 16px;
+  margin-right: 8px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .sales-search__label {
-  margin-right: 2px;
+  white-space: nowrap;
 }
 
-.sales-search__row:not(.sales-search__row--top) {
-  grid-template-columns: 86px repeat(7, max-content) 1fr auto;
-  column-gap: 34px;
+.sales-search__row--filters {
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  column-gap: 12px;
+  border-top: 1px solid #edf1f6;
+  padding-top: 12px;
 }
 
 .sales-search label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.sales-search__options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 10px;
+  min-width: 0;
 }
 
 .sales-search input[type='checkbox'],
 .sales-search input[type='radio'] {
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   margin: 0;
+  accent-color: var(--color-primary);
 }
 
 .sales-search__actions {
   display: flex;
-  gap: 14px;
+  gap: 8px;
   margin-left: auto;
-  grid-column: 10;
-  padding-right: 8px;
 }
 
 .sales-search__button {
-  width: 56px;
-  min-height: 28px;
+  min-width: 58px;
+  min-height: 30px;
   border-radius: 6px;
-  padding: 0;
+  padding: 0 11px;
   font-size: 11px;
+}
+
+@media (max-width: 1100px) {
+  .sales-search__row--top,
+  .sales-search__row--filters {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .sales-search__actions {
+    margin-left: 0;
+  }
 }
 </style>
