@@ -124,20 +124,6 @@ const submitLogin = async () => {
   }
 }
 
-const enterAsDevRole = (role: UserRole) => {
-  authStore.setLoginInfo({
-    accessToken: `dev-${role.toLowerCase()}-token`,
-    userId: role === ADMIN_ROLE ? 9000001 : 1000001,
-    role,
-    branchId: role === ADMIN_ROLE ? 1 : 2,
-    branchName: role === ADMIN_ROLE ? '강남지점' : '서울지점',
-    name: role === ADMIN_ROLE ? '홍길동' : '김설계',
-    isFirstLogin: false,
-  })
-
-  void moveToRoleHome(role)
-}
-
 const completeFirstLogin = async () => {
   isFirstLoginModalOpen.value = false
   pendingLoginRole.value = null
@@ -173,16 +159,6 @@ const completeFirstLogin = async () => {
           {{ isLoading ? '로그인 중...' : '로그인' }}
         </button>
       </form>
-
-      <div v-if="isDev" class="login-page__dev-tools">
-        <p>개발용 권한 테스트</p>
-        <button class="button button-primary" type="button" @click="enterAsDevRole(SALES_ROLE)">
-          영업사원 화면 진입
-        </button>
-        <button class="button button-secondary" type="button" @click="enterAsDevRole(ADMIN_ROLE)">
-          관리자 화면 진입
-        </button>
-      </div>
     </section>
 
     <FirstLoginModal

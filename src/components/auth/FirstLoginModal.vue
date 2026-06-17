@@ -70,7 +70,6 @@ const submitPasswordChange = async () => {
         aria-labelledby="first-login-modal-title"
       >
         <header class="first-login-modal__header">
-          <p class="first-login-modal__eyebrow">비밀번호 재설정</p>
           <h3 id="first-login-modal-title">최초 로그인 비밀번호 재설정</h3>
           <p>계정 보호를 위해 임시 비밀번호를 새 비밀번호로 변경해 주세요.</p>
         </header>
