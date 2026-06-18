@@ -39,6 +39,7 @@ const customerTypeTabs = [
   { label: '잠재', value: '01' },
   { label: '통합', value: '02' },
 ] as const
+const SALES_PAGE_SIZE = 10
 
 const customerStageMatches = (customer: SalesCustomer, stageCode: '01' | '02') => {
   return resolveSalesCustomerStageCode(customer) === stageCode
@@ -46,21 +47,15 @@ const customerStageMatches = (customer: SalesCustomer, stageCode: '01' | '02') =
 
 const displayedCustomers = computed(() => {
   const customerStageCode = activeCustomerType.value
+  const consultStatusCodes = filters.value.consultStatusCodes
   const contractStatusCodes = filters.value.contractStatusCodes
+
+  if (consultStatusCodes?.length || contractStatusCodes?.length) {
+    return customers.value
+  }
 
   return customers.value.filter((customer) => {
     if (customerStageCode && !customerStageMatches(customer, customerStageCode)) {
-      return false
-    }
-
-    if (contractStatusCodes?.length && !customerStageMatches(customer, '02')) {
-      return false
-    }
-
-    if (
-      contractStatusCodes?.length &&
-      !contractStatusCodes.includes(customer.contractStatusCode ?? '')
-    ) {
       return false
     }
 
@@ -69,9 +64,11 @@ const displayedCustomers = computed(() => {
 })
 
 const displayedTotalCount = computed(() =>
-  activeCustomerType.value || filters.value.contractStatusCodes?.length
-    ? displayedCustomers.value.length
-    : totalCount.value,
+  filters.value.consultStatusCodes?.length ||
+  filters.value.contractStatusCodes?.length ||
+  !activeCustomerType.value
+    ? totalCount.value
+    : displayedCustomers.value.length,
 )
 
 // KPI API가 요구하는 yyyyMM 형식으로 현재 연월을 생성
@@ -107,7 +104,7 @@ const loadSalesList = async (page = currentPage.value) => {
     const result = await getSalesList({
       ...filters.value,
       page,
-      size: 10,
+      size: SALES_PAGE_SIZE,
     })
     customers.value = result.items
     currentPage.value = result.page
@@ -126,8 +123,12 @@ const loadSalesList = async (page = currentPage.value) => {
 // 새 검색을 실행하면 첫 페이지부터 다시 조회
 const handleSearch = (nextFilters: SalesSearchFilters) => {
   filters.value = nextFilters
-  if (nextFilters.contractStatusCodes?.length) {
+  if (nextFilters.consultStatusCodes?.length && !nextFilters.contractStatusCodes?.length) {
+    activeCustomerType.value = '01'
+  } else if (nextFilters.contractStatusCodes?.length && !nextFilters.consultStatusCodes?.length) {
     activeCustomerType.value = '02'
+  } else if (nextFilters.consultStatusCodes?.length && nextFilters.contractStatusCodes?.length) {
+    activeCustomerType.value = ''
   }
   void loadSalesList(1)
 }
@@ -363,12 +364,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .sales-page__main {
-  padding: 16px 28px 8px 25px;
+  padding: 14px 26px 8px 24px;
   overflow-x: hidden;
 }
 
 .sales-list {
-  padding: 13px 17px 6px;
+  border: 1px solid #e3e8f0;
+  box-shadow: none;
+  padding: 11px 14px 8px;
 }
 
 .sales-list__header {
@@ -376,12 +379,13 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 9px;
 }
 
 .sales-section-title {
   margin: 0;
-  font-size: 16px;
+  color: #263142;
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -389,7 +393,7 @@ onBeforeUnmount(() => {
 .sales-list__count {
   margin-left: 5px;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -408,9 +412,9 @@ onBeforeUnmount(() => {
 }
 
 .sales-list__report-message {
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 7px 9px;
   font-size: 11px;
   font-weight: 700;
 }
@@ -432,9 +436,9 @@ onBeforeUnmount(() => {
 }
 
 .sales-list__criteria-button {
-  min-height: 28px;
-  border-radius: 6px;
-  padding: 0 12px;
+  min-height: 26px;
+  border-radius: 5px;
+  padding: 0 10px;
   font-size: 11px;
 }
 
@@ -442,19 +446,19 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   border: 1px solid #dfe5ee;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #f7f9fc;
-  padding: 3px;
+  padding: 2px;
 }
 
 .customer-type-tabs__button {
-  min-width: 48px;
-  height: 26px;
+  min-width: 44px;
+  height: 24px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
   color: #6b7483;
-  padding: 0 11px;
+  padding: 0 10px;
   font-size: 11px;
   font-weight: 850;
 }

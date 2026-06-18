@@ -99,6 +99,7 @@ export interface SalesSearchParams {
   customerName?: string
   age?: number
   gender?: 'Male' | 'Female'
+  consultStatusCodes?: string[]
   contractStatusCodes?: string[]
   hasReport?: boolean
   hasThreeStep?: boolean
@@ -107,6 +108,23 @@ export interface SalesSearchParams {
 }
 
 export type SalesSearchFilters = Omit<SalesSearchParams, 'page' | 'size'>
+
+const serializeSalesSearchParams = (params: SalesSearchParams) => {
+  const searchParams = new URLSearchParams()
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined) return
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => searchParams.append(key, item))
+      return
+    }
+
+    searchParams.append(key, String(value))
+  })
+
+  return searchParams.toString()
+}
 
 export async function getSalesSummary(targetYearMonth: string) {
   const response = await api.get<ApiResponse<SalesSummary>>('/v1/sales/performance/summary', {
@@ -117,12 +135,9 @@ export async function getSalesSummary(targetYearMonth: string) {
 }
 
 export async function getSalesList(params: SalesSearchParams) {
-  const requestParams = {
-    ...params,
-    contractStatusCodes: params.contractStatusCodes?.join(','),
-  }
   const response = await api.get<ApiResponse<SalesPage>>('/v1/sales/performance/contracts', {
-    params: requestParams,
+    params,
+    paramsSerializer: serializeSalesSearchParams,
   })
 
   return response.data.data

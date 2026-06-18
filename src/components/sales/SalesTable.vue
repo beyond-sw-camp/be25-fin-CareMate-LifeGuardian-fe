@@ -80,7 +80,7 @@ const contractClass = (statusCode?: string) => {
     '02': 'blue',
     '03': 'success',
     '04': 'danger',
-    '05': 'muted',
+    '06': 'muted',
   }
 
   return statusCode ? classMap[statusCode] ?? 'muted' : 'danger-soft'
@@ -141,14 +141,16 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <th>납입 회수일</th>
           <th>리포트 발송상태</th>
           <th>
-            <button
-              class="report-button report-button--bulk"
-              type="button"
-              :disabled="customers.length === 0 || isBulkSending"
-              @click="emit('bulkSend')"
-            >
-              {{ isBulkSending ? '일괄 발송 중' : '일괄 발송' }}
-            </button>
+            <div class="sales-table__actions">
+              <button
+                class="report-button report-button--bulk"
+                type="button"
+                :disabled="customers.length === 0 || isBulkSending"
+                @click="emit('bulkSend')"
+              >
+                {{ isBulkSending ? '일괄 발송 중' : '일괄 발송' }}
+              </button>
+            </div>
           </th>
         </tr>
       </thead>
@@ -210,15 +212,24 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <td>{{ customer.webformReceivedAt }}</td>
           <td class="report-status">{{ customer.reportStatusName }}</td>
           <td>
-            <button
-              class="report-button"
-              :class="{ 'report-button--disabled': !canShowSendButton(customer) }"
-              type="button"
-              :disabled="!canShowSendButton(customer) || isSending(customer.customerId)"
-              @click="emit('sendReport', customer)"
-            >
-              {{ canShowSendButton(customer) ? sendButtonLabel(customer) : '발송' }}
-            </button>
+            <div class="sales-table__actions">
+              <button
+                class="report-button report-button--webform report-button--disabled"
+                type="button"
+                disabled
+              >
+                웹폼 발송
+              </button>
+              <button
+                class="report-button"
+                :class="{ 'report-button--disabled': !canShowSendButton(customer) }"
+                type="button"
+                :disabled="!canShowSendButton(customer) || isSending(customer.customerId)"
+                @click="emit('sendReport', customer)"
+              >
+                {{ canShowSendButton(customer) ? sendButtonLabel(customer) : '리포트 발송' }}
+              </button>
+            </div>
           </td>
         </tr>
         <tr v-if="customers.length === 0">
@@ -232,7 +243,8 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 <style scoped>
 .sales-table {
   overflow: visible;
-  border: 1px solid #dfe4ec;
+  border: 1px solid #e1e7f0;
+  border-radius: 6px;
 }
 
 .sales-table table {
@@ -241,17 +253,18 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 
 .sales-table th,
 .sales-table td {
-  height: 38px;
-  border-bottom: 1px solid #e7ebf1;
-  padding: 0 10px;
+  height: 36px;
+  border-bottom: 1px solid #edf1f6;
+  padding: 0 9px;
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
 .sales-table th {
-  height: 34px;
-  background: #eef1f6;
+  height: 32px;
+  background: #f6f8fb;
+  color: #4c586b;
   font-weight: 800;
 }
 
@@ -266,13 +279,19 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 
 .sales-table th:first-child,
 .sales-table td:first-child {
-  width: 33px;
+  width: 31px;
+}
+
+.sales-table th:last-child,
+.sales-table td:last-child {
+  width: 126px;
 }
 
 .sales-table input[type='checkbox'] {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   margin: 0;
+  accent-color: var(--color-primary);
 }
 
 .sales-table tbody tr.sales-table__row--age-shift-warning .customer-name {
@@ -367,11 +386,11 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
-  height: 22px;
-  border-radius: var(--radius-pill);
-  padding: 0 10px;
-  font-size: 11px;
+  min-width: 46px;
+  height: 20px;
+  border-radius: 5px;
+  padding: 0 8px;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -407,14 +426,21 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 
 .report-button {
   min-width: 54px;
-  height: 26px;
+  height: 24px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 5px;
   background: #4e63e6;
   color: #ffffff;
-  padding: 0 12px;
-  font-size: 11px;
+  padding: 0 10px;
+  font-size: 10px;
   font-weight: 800;
+}
+
+.sales-table__actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
 
 .report-button--disabled {
@@ -423,9 +449,13 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 }
 
 .report-button--bulk {
-  min-width: 50px;
-  height: 26px;
+  min-width: 58px;
+  height: 24px;
   background: #4e63e6;
+}
+
+.report-button--webform {
+  min-width: 54px;
 }
 
 .report-button--bulk:hover:not(:disabled),
