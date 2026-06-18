@@ -67,8 +67,7 @@ const salesItems: SidebarItem[] = [
 const adminItems: SidebarItem[] = [
   { label: '대시보드', to: '/admin/dashboard' },
   { label: '영업사원 관리', to: '/admin/members' },
-  { label: '시스템 감사', to: '/admin/audit' },
-  { label: 'ESG', to: '/admin/esg' },
+  { label: '시스템 감사 및 ESG', to: '/admin/audit&esg' }
 ]
 
 const defaultItems = isAdmin ? adminItems : salesItems
