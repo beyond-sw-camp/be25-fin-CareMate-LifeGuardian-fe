@@ -36,7 +36,7 @@ defineProps<{
     </div>
 
     <aside class="lifecycle-panel">
-      <span class="panel-label">생활주기 정보</span>
+      <span class="panel-label">생애주기 정보</span>
       <strong>{{ resolveLifeStageLabel(user) }}</strong>
       <p>보험나이 변경 기준일 {{ fallback(user.insuranceAgeShiftDate) }}</p>
       <b>{{ resolveAgeShiftDDay(user) || '-' }}</b>

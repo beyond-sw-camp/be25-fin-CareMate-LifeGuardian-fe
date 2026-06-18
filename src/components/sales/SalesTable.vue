@@ -10,9 +10,11 @@ import {
 const props = defineProps<{
   customers: SalesCustomer[]
   sendingCustomerIds?: number[]
+  isBulkSending?: boolean
 }>()
 
 const emit = defineEmits<{
+  bulkSend: []
   sendReport: [customer: SalesCustomer]
 }>()
 
@@ -138,7 +140,16 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <th>피보험자</th>
           <th>납입 회수일</th>
           <th>리포트 발송상태</th>
-          <th></th>
+          <th>
+            <button
+              class="report-button report-button--bulk"
+              type="button"
+              :disabled="customers.length === 0 || isBulkSending"
+              @click="emit('bulkSend')"
+            >
+              {{ isBulkSending ? '일괄 발송 중' : '일괄 발송' }}
+            </button>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -395,10 +406,10 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 }
 
 .report-button {
-  min-width: 52px;
+  min-width: 54px;
   height: 26px;
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: 6px;
   background: #4e63e6;
   color: #ffffff;
   padding: 0 12px;
@@ -409,6 +420,21 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 .report-button--disabled {
   background: #c5cad3;
   color: #ffffff;
+}
+
+.report-button--bulk {
+  min-width: 50px;
+  height: 26px;
+  background: #4e63e6;
+}
+
+.report-button--bulk:hover:not(:disabled),
+.report-button:hover:not(:disabled) {
+  background: #4055d4;
+}
+
+.report-button--bulk:disabled {
+  background: #c5cad3;
 }
 
 .report-status {
