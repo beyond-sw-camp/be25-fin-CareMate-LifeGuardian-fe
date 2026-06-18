@@ -7,15 +7,14 @@ import {
   USER_ROLE_STORAGE_KEY,
   type UserRole,
 } from '../constants/auth'
-import AdminAuditPage from '../pages/admin/AdminAuditPage.vue'
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.vue'
-import AdminEsgPage from '../pages/admin/AdminEsgPage.vue'
 import AdminMembersPage from '../pages/admin/AdminMembersPage.vue'
 import LoginPage from '../pages/login/LoginPage.vue'
 import UserDetailPage from '../pages/userDetail/UserDetailPage.vue'
 import PotentialPage from '../pages/sales/PotentialPage.vue'
 import SalesDashboardPage from '../pages/sales/SalesDashboardPage.vue'
 import SalesPage from '../pages/sales/SalesPage.vue'
+import AdminAuditAndEsgPage from "@/pages/admin/AdminAuditAndEsgPage.vue";
 
 const roleHomeMap: Record<UserRole, string> = {
   [ADMIN_ROLE]: '/admin/dashboard',
@@ -93,20 +92,12 @@ const router = createRouter({
       },
     },
     {
-      path: '/admin/audit',
-      name: 'admin-audit',
-      component: AdminAuditPage,
-      meta: {
-        allowedRoles: [ADMIN_ROLE],
-      },
-    },
-    {
-      path: '/admin/esg',
-      name: 'admin-esg',
-      component: AdminEsgPage,
-      meta: {
-        allowedRoles: [ADMIN_ROLE],
-      },
+        path: '/admin/audit&esg',
+        name: 'admin-audit&esg',
+        component: AdminAuditAndEsgPage,
+        meta: {
+            allowedRoles: [ADMIN_ROLE],
+        },
     },
   ],
 })
