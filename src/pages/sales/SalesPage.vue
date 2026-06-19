@@ -10,14 +10,15 @@ import SalesTable from '../../components/sales/SalesTable.vue'
 import {
   getSalesList,
   getSalesSummary,
-  resolveSalesCustomerStageCode,
   sendCustomerReport,
   sendCustomerReportsInBulk,
+  sendCustomerWebformsInBulk,
   type SalesCustomer,
   type SalesSearchFilters,
   type SalesSummary as SalesSummaryData,
 } from '@/api/sales'
 
+const selectedReportIds = ref<number[]>([])
 const isCriteriaModalOpen = ref(false)
 const summary = ref<SalesSummaryData | null>(null)
 const customers = ref<SalesCustomer[]>([])
@@ -29,47 +30,15 @@ const errorMessage = ref('')
 const reportMessage = ref('')
 const reportMessageType = ref<'success' | 'error'>('success')
 const sendingCustomerIds = ref<number[]>([])
-const isBulkSending = ref(false)
+const isReportBulkSending = ref(false)
+const isWebformBulkSending = ref(false)
 const filters = ref<SalesSearchFilters>({})
-const activeCustomerType = ref<'' | '01' | '02'>('')
 let reportMessageTimer: ReturnType<typeof setTimeout> | undefined
 
-const customerTypeTabs = [
-  { label: '전체', value: '' },
-  { label: '잠재', value: '01' },
-  { label: '통합', value: '02' },
-] as const
 const SALES_PAGE_SIZE = 10
 
-const customerStageMatches = (customer: SalesCustomer, stageCode: '01' | '02') => {
-  return resolveSalesCustomerStageCode(customer) === stageCode
-}
-
-const displayedCustomers = computed(() => {
-  const customerStageCode = activeCustomerType.value
-  const consultStatusCodes = filters.value.consultStatusCodes
-  const contractStatusCodes = filters.value.contractStatusCodes
-
-  if (consultStatusCodes?.length || contractStatusCodes?.length) {
-    return customers.value
-  }
-
-  return customers.value.filter((customer) => {
-    if (customerStageCode && !customerStageMatches(customer, customerStageCode)) {
-      return false
-    }
-
-    return true
-  })
-})
-
-const displayedTotalCount = computed(() =>
-  filters.value.consultStatusCodes?.length ||
-  filters.value.contractStatusCodes?.length ||
-  !activeCustomerType.value
-    ? totalCount.value
-    : displayedCustomers.value.length,
-)
+const displayedCustomers = computed(() => customers.value)
+const displayedTotalCount = computed(() => totalCount.value)
 
 // KPI API가 요구하는 yyyyMM 형식으로 현재 연월을 생성
 const currentYearMonth = () => {
@@ -123,18 +92,7 @@ const loadSalesList = async (page = currentPage.value) => {
 // 새 검색을 실행하면 첫 페이지부터 다시 조회
 const handleSearch = (nextFilters: SalesSearchFilters) => {
   filters.value = nextFilters
-  if (nextFilters.consultStatusCodes?.length && !nextFilters.contractStatusCodes?.length) {
-    activeCustomerType.value = '01'
-  } else if (nextFilters.contractStatusCodes?.length && !nextFilters.consultStatusCodes?.length) {
-    activeCustomerType.value = '02'
-  } else if (nextFilters.consultStatusCodes?.length && nextFilters.contractStatusCodes?.length) {
-    activeCustomerType.value = ''
-  }
   void loadSalesList(1)
-}
-
-const handleCustomerTypeChange = (value: '' | '01' | '02') => {
-  activeCustomerType.value = value
 }
 
 const showReportMessage = (message: string, type: 'success' | 'error') => {
@@ -180,23 +138,57 @@ const handleSendReport = async (customer: SalesCustomer) => {
 }
 
 const handleBulkSend = async () => {
-  if (isBulkSending.value) return
-  if (!window.confirm('일괄 발송하시겠습니까?')) return
+  if (isReportBulkSending.value) return
 
-  isBulkSending.value = true
+  const selectedCount = selectedReportIds.value.length
+  if (
+    !window.confirm(
+      selectedCount > 0
+        ? `선택한 ${selectedCount}건의 리포트를 발송하시겠습니까?`
+        : '현재 조건의 발송 가능한 리포트를 전체 발송하시겠습니까?',
+    )
+  ) {
+    return
+  }
+
+  isReportBulkSending.value = true
   reportMessage.value = ''
 
   try {
-    const result = await sendCustomerReportsInBulk()
+    const result = await sendCustomerReportsInBulk(selectedReportIds.value)
+
     showReportMessage(
-      `일괄 발송 완료: 요청 ${result.requestedCount}건, 성공 ${result.successCount}건, 실패 ${result.failedCount}건`,
+      `리포트 일괄 발송 완료: 요청 ${result.requestedCount}건, 성공 ${result.successCount}건, 실패 ${result.failedCount}건`,
       result.failedCount > 0 ? 'error' : 'success',
     )
+
+    selectedReportIds.value = []
     await loadSalesList()
   } catch (error) {
     showReportMessage(getErrorMessage(error, '리포트 일괄 발송에 실패했습니다.'), 'error')
   } finally {
-    isBulkSending.value = false
+    isReportBulkSending.value = false
+  }
+}
+
+const handleWebformBulkSend = async () => {
+  if (isWebformBulkSending.value) return
+  if (!window.confirm('웹폼을 일괄 발송하시겠습니까?')) return
+
+  isWebformBulkSending.value = true
+  reportMessage.value = ''
+
+  try {
+    const result = await sendCustomerWebformsInBulk()
+    showReportMessage(
+      `웹폼 일괄 발송 완료: 요청 ${result.requestedCount}건, 성공 ${result.successCount}건, 실패 ${result.failedCount}건`,
+      result.failedCount > 0 ? 'error' : 'success',
+    )
+    await loadSalesList()
+  } catch (error) {
+    showReportMessage(getErrorMessage(error, '웹폼 일괄 발송에 실패했습니다.'), 'error')
+  } finally {
+    isWebformBulkSending.value = false
   }
 }
 
@@ -233,20 +225,6 @@ onBeforeUnmount(() => {
       <section class="card sales-list">
         <div class="sales-list__header">
           <h3 class="sales-section-title">목록 <span class="sales-list__count">총 {{ displayedTotalCount }}건</span></h3>
-          <div class="sales-list__actions">
-            <div class="customer-type-tabs" aria-label="고객 유형 필터">
-              <button
-                v-for="tab in customerTypeTabs"
-                :key="tab.value || 'all'"
-                class="customer-type-tabs__button"
-                :class="{ 'is-active': activeCustomerType === tab.value }"
-                type="button"
-                @click="handleCustomerTypeChange(tab.value)"
-              >
-                {{ tab.label }}
-              </button>
-            </div>
-          </div>
         </div>
 
         <p
@@ -260,18 +238,41 @@ onBeforeUnmount(() => {
         <p v-if="errorMessage" class="sales-list__message sales-list__message--error">{{ errorMessage }}</p>
         <p v-else-if="isLoading" class="sales-list__message">불러오는 중...</p>
         <SalesTable
-          v-else
-          :customers="displayedCustomers"
-          :sending-customer-ids="sendingCustomerIds"
-          :is-bulk-sending="isBulkSending"
-          @bulk-send="handleBulkSend"
-          @send-report="handleSendReport"
-        />
-        <SalesPagination
-          :current-page="currentPage"
-          :total-pages="totalPages"
-          @change="loadSalesList"
-        />
+        v-else
+        v-model:selected-report-ids="selectedReportIds"
+        :customers="displayedCustomers"
+        :sending-customer-ids="sendingCustomerIds"
+        @send-report="handleSendReport"
+      />
+        <div class="sales-list__footer">
+          <div class="sales-list__bulk-actions">
+            <button
+              class="report-button report-button--webform-bulk"
+              type="button"
+              title="현재 조건의 웹폼을 일괄 발송합니다."
+              aria-label="웹폼 일괄 발송"
+              :disabled="displayedCustomers.length === 0 || isWebformBulkSending"
+              @click="handleWebformBulkSend"
+            >
+              {{ isWebformBulkSending ? '발송 중' : '웹폼 일괄발송' }}
+            </button>
+            <button
+              class="report-button report-button--bulk"
+              type="button"
+              title="선택한 리포트가 있으면 선택 발송, 없으면 현재 조건의 리포트를 전체 발송합니다."
+              aria-label="리포트 일괄 발송"
+              :disabled="displayedCustomers.length === 0 || isReportBulkSending"
+              @click="handleBulkSend"
+            >
+              {{ isReportBulkSending ? '발송 중' : '리포트 일괄발송' }}
+            </button>
+          </div>
+          <SalesPagination
+            :current-page="currentPage"
+            :total-pages="totalPages"
+            @change="loadSalesList"
+          />
+        </div>
       </section>
     </main>
 
@@ -429,12 +430,6 @@ onBeforeUnmount(() => {
   color: #c43e4b;
 }
 
-.sales-list__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .sales-list__criteria-button {
   min-height: 26px;
   border-radius: 5px;
@@ -442,35 +437,46 @@ onBeforeUnmount(() => {
   font-size: 11px;
 }
 
-.customer-type-tabs {
-  display: inline-flex;
+.sales-list__footer {
+  position: relative;
+  display: flex;
   align-items: center;
-  border: 1px solid #dfe5ee;
-  border-radius: 6px;
-  background: #f7f9fc;
-  padding: 2px;
+  justify-content: center;
+  min-height: 32px;
+  margin-top: 8px;
 }
 
-.customer-type-tabs__button {
-  min-width: 44px;
+.report-button {
+  min-width: 58px;
   height: 24px;
   border: 0;
   border-radius: 5px;
-  background: transparent;
-  color: #6b7483;
+  background: #4e63e6;
+  color: #ffffff;
   padding: 0 10px;
-  font-size: 11px;
-  font-weight: 850;
+  font-size: 10px;
+  font-weight: 800;
 }
 
-.customer-type-tabs__button:hover {
-  color: #263142;
+.sales-list__bulk-actions {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.customer-type-tabs__button.is-active {
-  background: #ffffff;
-  color: var(--color-primary);
-  box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
+.report-button--webform-bulk,
+.report-button--bulk {
+  min-width: 82px;
+}
+
+.report-button:hover:not(:disabled) {
+  background: #4055d4;
+}
+
+.report-button:disabled {
+  background: #c5cad3;
 }
 
 .sales-criteria-modal {

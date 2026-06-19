@@ -189,4 +189,5 @@ watch(
     width: 100%;
   }
 }
+
 </style>

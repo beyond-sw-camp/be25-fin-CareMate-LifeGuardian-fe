@@ -10,19 +10,25 @@ import {
 const props = defineProps<{
   customers: SalesCustomer[]
   sendingCustomerIds?: number[]
-  isBulkSending?: boolean
+  selectedReportIds?: number[]
 }>()
 
 const emit = defineEmits<{
-  bulkSend: []
+  'update:selectedReportIds': [reportIds: number[]]
   sendReport: [customer: SalesCustomer]
 }>()
 
 const SENDABLE_REPORT_STATUS_CODES = new Set(['01', '02', '03'])
-const selectedCustomerIds = ref<number[]>([])
 const selectAllCheckbox = ref<HTMLInputElement | null>(null)
 
 const isSending = (customerId: number) => props.sendingCustomerIds?.includes(customerId) ?? false
+const isSelectableReport = (customer: SalesCustomer) =>
+  typeof customer.reportId === 'number' && customer.reportId > 0 && canShowSendButton(customer)
+const selectableReportIds = computed(() =>
+  props.customers
+    .filter(isSelectableReport)
+    .map((customer) => customer.reportId!),
+)
 const canShowSendButton = (customer: SalesCustomer) =>
   customer.hasReport &&
   Boolean(customer.reportStatusCode) &&
@@ -35,26 +41,43 @@ const sendButtonLabel = (customer: SalesCustomer) => {
 
 const isAllSelected = computed(
   () =>
-    props.customers.length > 0 &&
-    props.customers.every((customer) => selectedCustomerIds.value.includes(customer.customerId)),
+    selectableReportIds.value.length > 0 &&
+    selectableReportIds.value.every((reportId) => props.selectedReportIds?.includes(reportId)),
 )
 const isPartiallySelected = computed(
-  () => selectedCustomerIds.value.length > 0 && !isAllSelected.value,
+  () => Boolean(props.selectedReportIds?.length) && !isAllSelected.value,
 )
 
 const toggleAllCustomers = () => {
-  selectedCustomerIds.value = isAllSelected.value
-    ? []
-    : props.customers.map((customer) => customer.customerId)
+  emit('update:selectedReportIds', isAllSelected.value ? [] : selectableReportIds.value)
+}
+
+const toggleReport = (customer: SalesCustomer) => {
+  if (!isSelectableReport(customer)) return
+
+  const reportId = customer.reportId!
+  const selectedIds = props.selectedReportIds ?? []
+  const nextIds = selectedIds.includes(reportId)
+    ? selectedIds.filter((selectedReportId) => selectedReportId !== reportId)
+    : [...selectedIds, reportId]
+
+  emit('update:selectedReportIds', nextIds)
 }
 
 watch(
   () => props.customers,
   (customers) => {
-    const visibleCustomerIds = new Set(customers.map((customer) => customer.customerId))
-    selectedCustomerIds.value = selectedCustomerIds.value.filter((customerId) =>
-      visibleCustomerIds.has(customerId),
+    const visibleReportIds = new Set(
+      customers
+        .filter(isSelectableReport)
+        .map((customer) => customer.reportId!),
     )
+    const selectedIds = props.selectedReportIds ?? []
+    const nextIds = selectedIds.filter((reportId) => visibleReportIds.has(reportId))
+
+    if (nextIds.length !== selectedIds.length) {
+      emit('update:selectedReportIds', nextIds)
+    }
   },
 )
 
@@ -124,8 +147,8 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
               ref="selectAllCheckbox"
               type="checkbox"
               :checked="isAllSelected"
-              :disabled="customers.length === 0"
-              aria-label="현재 목록 전체 선택"
+              :disabled="selectableReportIds.length === 0"
+              aria-label="현재 목록의 발송 가능한 리포트 전체 선택"
               @change="toggleAllCustomers"
             />
           </th>
@@ -140,18 +163,8 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <th>피보험자</th>
           <th>납입 회수일</th>
           <th>리포트 발송상태</th>
-          <th>
-            <div class="sales-table__actions">
-              <button
-                class="report-button report-button--bulk"
-                type="button"
-                :disabled="customers.length === 0 || isBulkSending"
-                @click="emit('bulkSend')"
-              >
-                {{ isBulkSending ? '일괄 발송 중' : '일괄 발송' }}
-              </button>
-            </div>
-          </th>
+          <th>웹폼 발송</th>
+          <th>리포트 발송</th>
         </tr>
       </thead>
       <tbody>
@@ -162,10 +175,11 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
         >
           <td>
             <input
-              v-model="selectedCustomerIds"
               type="checkbox"
-              :value="customer.customerId"
-              :aria-label="`${customer.customerName} 선택`"
+              :checked="Boolean(customer.reportId && selectedReportIds?.includes(customer.reportId))"
+              :disabled="!isSelectableReport(customer)"
+              :aria-label="`${customer.customerName} 리포트 선택`"
+              @change="toggleReport(customer)"
             />
           </td>
           <td>
@@ -218,8 +232,12 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
                 type="button"
                 disabled
               >
-                웹폼 발송
+                발송
               </button>
+            </div>
+          </td>
+          <td>
+            <div class="sales-table__actions">
               <button
                 class="report-button"
                 :class="{ 'report-button--disabled': !canShowSendButton(customer) }"
@@ -227,13 +245,13 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
                 :disabled="!canShowSendButton(customer) || isSending(customer.customerId)"
                 @click="emit('sendReport', customer)"
               >
-                {{ canShowSendButton(customer) ? sendButtonLabel(customer) : '리포트 발송' }}
+                {{ canShowSendButton(customer) ? sendButtonLabel(customer) : '발송' }}
               </button>
             </div>
           </td>
         </tr>
         <tr v-if="customers.length === 0">
-          <td class="sales-table__empty" colspan="13">조회된 영업현황이 없습니다.</td>
+          <td class="sales-table__empty" colspan="14">조회된 영업현황이 없습니다.</td>
         </tr>
       </tbody>
     </table>
@@ -282,9 +300,11 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
   width: 31px;
 }
 
+.sales-table th:nth-last-child(2),
+.sales-table td:nth-last-child(2),
 .sales-table th:last-child,
 .sales-table td:last-child {
-  width: 126px;
+  width: 78px;
 }
 
 .sales-table input[type='checkbox'] {
@@ -448,23 +468,12 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
   color: #ffffff;
 }
 
-.report-button--bulk {
-  min-width: 58px;
-  height: 24px;
-  background: #4e63e6;
-}
-
 .report-button--webform {
   min-width: 54px;
 }
 
-.report-button--bulk:hover:not(:disabled),
 .report-button:hover:not(:disabled) {
   background: #4055d4;
-}
-
-.report-button--bulk:disabled {
-  background: #c5cad3;
 }
 
 .report-status {

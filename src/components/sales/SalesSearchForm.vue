@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, nextTick, reactive } from 'vue'
 
 import type { SalesSearchFilters } from '@/api/sales'
 
@@ -11,11 +11,14 @@ const initialForm = () => ({
   customerName: '',
   age: '',
   gender: '' as '' | 'Male' | 'Female',
+  customerStageCode: '' as '' | '01' | '02',
   consultStatusCodes: [] as string[],
   contractStatusCodes: [] as string[],
   hasReport: false,
   hasThreeStep: false,
 })
+type SalesSearchFormState = ReturnType<typeof initialForm>
+type SalesSearchFormFilters = Partial<SalesSearchFormState>
 
 const form = reactive(initialForm())
 const consultStatusLabels: Record<string, string> = {
@@ -29,20 +32,45 @@ const contractStatusLabels: Record<string, string> = {
   '04': '청약완료',
   '06': '수납완료',
 }
-const quickFilters = [
-  { label: '미상담 잠재', filters: { consultStatusCodes: ['01'] } },
-  { label: '상담중 잠재', filters: { consultStatusCodes: ['02'] } },
-  { label: '청약 진행', filters: { contractStatusCodes: ['03', '04'] } },
-  { label: '수납완료', filters: { contractStatusCodes: ['06'] } },
-  { label: '3-Step', filters: { hasThreeStep: true } },
-] as const
+const quickFilters: { label: string; description: string; filters: SalesSearchFormFilters }[] = [
+  {
+    label: '첫 연락 대상',
+    description: '리포트는 준비됐지만 아직 상담을 시작하지 않은 잠재 고객입니다.',
+    filters: { customerStageCode: '01', consultStatusCodes: ['01'], hasReport: true },
+  },
+  {
+    label: '상담 후속관리',
+    description: '상담이 진행 중이며 리포트를 바탕으로 추가 안내가 필요한 잠재 고객입니다.',
+    filters: { customerStageCode: '01', consultStatusCodes: ['02'], hasReport: true },
+  },
+  {
+    label: '우선 상담 대상',
+    description: '아직 상담 전이지만 3-Step 점검 대상으로 우선 확인이 필요한 잠재 고객입니다.',
+    filters: { customerStageCode: '01', consultStatusCodes: ['01'], hasThreeStep: true },
+  },
+  {
+    label: '설계 진행건',
+    description: '설계중 또는 설계완료 상태로 다음 계약 단계 확인이 필요한 통합 고객입니다.',
+    filters: { customerStageCode: '02', contractStatusCodes: ['01', '02'] },
+  },
+  {
+    label: '청약 진행건',
+    description: '청약중 또는 청약완료 상태로 마무리 진행 상황을 확인할 통합 고객입니다.',
+    filters: { customerStageCode: '02', contractStatusCodes: ['03', '04'] },
+  },
+  {
+    label: '수납 완료건',
+    description: '수납이 완료됐고 리포트가 있어 후속 안내나 재안내가 가능한 통합 고객입니다.',
+    filters: { customerStageCode: '02', contractStatusCodes: ['06'], hasReport: true },
+  },
+]
 const appliedFilterChips = computed(() => {
   const chips: { key: string; label: string; remove: () => void }[] = []
 
-  if (form.customerName.trim()) {
+  if (form.customerName) {
     chips.push({
       key: 'customerName',
-      label: `고객 ${form.customerName.trim()}`,
+      label: `고객 ${form.customerName}`,
       remove: () => {
         form.customerName = ''
       },
@@ -65,6 +93,16 @@ const appliedFilterChips = computed(() => {
       label: form.gender === 'Male' ? '남' : '여',
       remove: () => {
         form.gender = ''
+      },
+    })
+  }
+
+  if (form.customerStageCode) {
+    chips.push({
+      key: 'customerStageCode',
+      label: form.customerStageCode === '01' ? '잠재' : '통합',
+      remove: () => {
+        form.customerStageCode = ''
       },
     })
   }
@@ -113,13 +151,16 @@ const appliedFilterChips = computed(() => {
 })
 
 // 빈 입력값은 쿼리 파라미터에서 제외해 백엔드 기본 조건을 사용한다.
-const submit = () => {
+const submit = async () => {
+  await nextTick()
+
   emit('search', {
-    customerName: form.customerName.trim() || undefined,
+    customerName: form.customerName || undefined,
     age: form.age === '' ? undefined : Number(form.age),
     gender: form.gender || undefined,
-    consultStatusCodes: form.consultStatusCodes.length ? [...form.consultStatusCodes] : undefined,
-    contractStatusCodes: form.contractStatusCodes.length ? [...form.contractStatusCodes] : undefined,
+    customerStageCode: form.customerStageCode || undefined,
+    consultStatusCode: form.consultStatusCodes.length ? [...form.consultStatusCodes] : undefined,
+    contractStatusCode: form.contractStatusCodes.length ? [...form.contractStatusCodes] : undefined,
     hasReport: form.hasReport || undefined,
     hasThreeStep: form.hasThreeStep || undefined,
   })
@@ -131,7 +172,7 @@ const reset = () => {
   submit()
 }
 
-const applyQuickFilter = (filters: Partial<ReturnType<typeof initialForm>>) => {
+const applyQuickFilter = (filters: SalesSearchFormFilters) => {
   Object.assign(form, initialForm(), filters)
   submit()
 }
@@ -140,6 +181,7 @@ const removeFilter = (remove: () => void) => {
   remove()
   submit()
 }
+
 </script>
 
 <template>
@@ -152,6 +194,8 @@ const removeFilter = (remove: () => void) => {
           :key="quickFilter.label"
           class="sales-search__quick-button"
           type="button"
+          :aria-label="`${quickFilter.label}: ${quickFilter.description}`"
+          :title="quickFilter.description"
           @click="applyQuickFilter(quickFilter.filters)"
         >
           {{ quickFilter.label }}
@@ -162,7 +206,11 @@ const removeFilter = (remove: () => void) => {
     <div class="sales-search__row sales-search__row--top">
       <label class="sales-search__field">
         <span>고객 이름</span>
-        <input v-model="form.customerName" class="sales-search__input" placeholder="이름을 입력하세요." />
+        <input
+          v-model="form.customerName"
+          class="sales-search__input"
+          placeholder="이름을 입력하세요."
+        />
       </label>
 
       <label class="sales-search__field sales-search__field--age">
@@ -174,6 +222,13 @@ const removeFilter = (remove: () => void) => {
         <legend>성별</legend>
         <label><input v-model="form.gender" type="radio" value="Male" @change="submit" /> 남</label>
         <label><input v-model="form.gender" type="radio" value="Female" @change="submit" /> 여</label>
+      </fieldset>
+
+      <fieldset class="sales-search__stage">
+        <legend>고객 유형</legend>
+        <label><input v-model="form.customerStageCode" type="radio" value="" @change="submit" /> 전체</label>
+        <label><input v-model="form.customerStageCode" type="radio" value="01" @change="submit" /> 잠재</label>
+        <label><input v-model="form.customerStageCode" type="radio" value="02" @change="submit" /> 통합</label>
       </fieldset>
     </div>
 
@@ -303,7 +358,7 @@ const removeFilter = (remove: () => void) => {
 }
 
 .sales-search__row--top {
-  grid-template-columns: minmax(210px, 260px) minmax(150px, 180px) minmax(130px, 160px);
+  grid-template-columns: minmax(210px, 260px) minmax(150px, 180px) minmax(130px, 160px) minmax(190px, 240px);
   column-gap: 16px;
   margin-bottom: 8px;
 }
@@ -341,7 +396,8 @@ const removeFilter = (remove: () => void) => {
   color: #a6afbd;
 }
 
-.sales-search__gender {
+.sales-search__gender,
+.sales-search__stage {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -351,7 +407,8 @@ const removeFilter = (remove: () => void) => {
   white-space: nowrap;
 }
 
-.sales-search__gender legend {
+.sales-search__gender legend,
+.sales-search__stage legend {
   float: left;
   margin-right: 8px;
   font-weight: 700;
