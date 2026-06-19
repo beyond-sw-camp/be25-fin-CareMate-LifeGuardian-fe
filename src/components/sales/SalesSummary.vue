@@ -29,22 +29,24 @@ defineProps<{
 <style scoped>
 .sales-summary {
   display: grid;
-  grid-template-columns: 130px 1fr;
-  gap: 14px;
-  margin-bottom: 18px;
+  grid-template-columns: 118px 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .sales-summary__count-card,
 .sales-summary__target-card {
-  min-height: 75px;
-  padding: 9px 14px;
+  min-height: 64px;
+  border: 1px solid #e3e8f0;
+  box-shadow: none;
+  padding: 8px 12px;
 }
 
 .sales-summary__label,
 .sales-summary__caption {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -53,19 +55,20 @@ defineProps<{
   align-items: baseline;
   justify-content: center;
   gap: 3px;
-  color: #222222;
-  font-size: 39px;
-  font-weight: 400;
+  color: #1d2738;
+  font-size: 32px;
+  font-weight: 800;
   line-height: 1.08;
 }
 
 .sales-summary__count span {
-  font-size: 16px;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .sales-summary__progress-track {
-  height: 14px;
-  margin: 12px 25px 8px 0;
+  height: 10px;
+  margin: 10px 20px 7px 0;
   overflow: hidden;
   border-radius: var(--radius-pill);
   background: #e9eef5;
@@ -75,6 +78,6 @@ defineProps<{
   width: 78%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #3558ff, #3c73ff);
+  background: #4e63e6;
 }
 </style>

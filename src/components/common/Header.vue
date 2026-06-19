@@ -14,9 +14,7 @@ const authStore = useAuthStore()
 const isLoggingOut = ref(false)
 
 const logout = async () => {
-  if (isLoggingOut.value) {
-    return
-  }
+  if (isLoggingOut.value) return
 
   isLoggingOut.value = true
 
@@ -40,6 +38,7 @@ const logout = async () => {
     </div>
 
     <div class="app-header__user">
+      <slot name="actions"></slot>
       <button
         class="app-header__logout"
         type="button"
@@ -70,6 +69,7 @@ const logout = async () => {
 .app-header__user {
   display: flex;
   align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 

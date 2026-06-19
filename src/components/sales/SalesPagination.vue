@@ -48,25 +48,26 @@ const move = (page: number) => {
 .sales-pagination {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  margin-top: 9px;
+  gap: 4px;
+  margin-top: 8px;
 }
 
 .sales-pagination button {
-  min-width: 12px;
-  height: 21px;
-  border: 0;
+  min-width: 22px;
+  height: 22px;
+  border: 1px solid transparent;
+  border-radius: 5px;
   background: transparent;
-  color: #111111;
-  padding: 0;
+  color: #5f6c7d;
+  padding: 0 5px;
   font-size: 10px;
+  font-weight: 700;
 }
 
 .sales-pagination button.is-active {
-  min-width: 20px;
-  border: 1px solid #b8c7db;
-  background: #edf4ff;
-  color: #6080aa;
+  border-color: #c7d5f8;
+  background: #eef3ff;
+  color: #4055d4;
 }
 
 .sales-pagination button:disabled {

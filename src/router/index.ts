@@ -10,7 +10,7 @@ import {
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage.vue'
 import AdminMembersPage from '../pages/admin/AdminMembersPage.vue'
 import LoginPage from '../pages/login/LoginPage.vue'
-import CustomerDetailPage from '../pages/sales/CustomerDetailPage.vue'
+import UserDetailPage from '../pages/userDetail/UserDetailPage.vue'
 import PotentialPage from '../pages/sales/PotentialPage.vue'
 import SalesDashboardPage from '../pages/sales/SalesDashboardPage.vue'
 import SalesPage from '../pages/sales/SalesPage.vue'
@@ -60,9 +60,9 @@ const router = createRouter({
       },
     },
     {
-      path: '/sales/customers/:customerId',
-      name: 'customer-detail',
-      component: CustomerDetailPage,
+      path: '/user-detail/:customerId',
+      name: 'user-detail',
+      component: UserDetailPage,
       meta: {
         allowedRoles: [SALES_ROLE],
       },
