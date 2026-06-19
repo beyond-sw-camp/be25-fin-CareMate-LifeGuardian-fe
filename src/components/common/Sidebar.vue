@@ -69,6 +69,7 @@ const branchName = region ? `${region} ${branch}` : branch
 const salesItems: SidebarItem[] = [
   { label: '대시보드', to: '/sales/dashboard' },
   { label: '영업현황', to: '/sales' },
+  { label: '발송 내역', to: '/sales/send-history' },
   { label: '잠재고객 관리', to: '/potential' },
 ]
 
@@ -114,6 +115,7 @@ const navigationItems = props.items ?? defaultItems
 const navIconClass = (label: string) => {
   if (label.includes('대시보드')) return 'sidebar__nav-icon--dashboard'
   if (label.includes('영업') || label.includes('계약')) return 'sidebar__nav-icon--sales'
+  if (label.includes('발송')) return 'sidebar__nav-icon--sales'
   if (label.includes('잠재')) return 'sidebar__nav-icon--potential'
   if (label.includes('사원') || label.includes('멤버')) return 'sidebar__nav-icon--members'
   if (label.includes('감사')) return 'sidebar__nav-icon--audit'
