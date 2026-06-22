@@ -4,6 +4,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios'
 
+import router from '@/router'
 import { ACCESS_TOKEN_STORAGE_KEY } from '@/constants/auth'
 import { useAuthStore } from '@/stores/auth'
 
@@ -19,15 +20,11 @@ export interface TokenReissueResponse {
   accessToken: string
 }
 
-type TokenReissueApiResponse =
-  | ApiResponse<TokenReissueResponse>
-  | ApiResponse<string>
-  | TokenReissueResponse
-
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean
 }
 
+const AUTH_LOGIN_URL = '/v1/auth/login'
 const TOKEN_REISSUE_URL = '/v1/auth/reissue'
 const TOKEN_LOGOUT_URL = '/v1/auth/logout'
 
@@ -51,35 +48,20 @@ const tokenApi = axios.create({
 
 let refreshTokenRequest: Promise<TokenReissueResponse> | null = null
 
+const isAuthRequest = (url?: string) => {
+  if (!url) return false
+
+  return (
+    url.includes(AUTH_LOGIN_URL) ||
+    url.includes(TOKEN_REISSUE_URL) ||
+    url.includes(TOKEN_LOGOUT_URL)
+  )
+}
+
 const reissueToken = async () => {
-  const authStore = useAuthStore()
-  const accessToken = authStore.accessToken ?? sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
-
   refreshTokenRequest ??= tokenApi
-    .post<TokenReissueApiResponse>(TOKEN_REISSUE_URL, undefined, {
-      headers: accessToken
-        ? {
-            Authorization: `Bearer ${accessToken}`,
-          }
-        : undefined,
-    })
-    .then((response) => {
-      const body = response.data
-
-      if (typeof body === 'string') {
-        return { accessToken: body }
-      }
-
-      if ('accessToken' in body) {
-        return body
-      }
-
-      if (typeof body.data === 'string') {
-        return { accessToken: body.data }
-      }
-
-      return body.data
-    })
+    .post<ApiResponse<TokenReissueResponse>>(TOKEN_REISSUE_URL)
+    .then((response) => response.data.data)
     .finally(() => {
       refreshTokenRequest = null
     })
@@ -96,23 +78,16 @@ export const reissueAccessToken = async () => {
   return tokenInfo.accessToken
 }
 
-api.interceptors.request.use(async (config) => {
+api.interceptors.request.use((config) => {
   const authStore = useAuthStore()
-  let accessToken = sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
-  const isDevToken = import.meta.env.DEV && accessToken?.startsWith('dev-')
-  const isTokenReissueRequest = config.url === TOKEN_REISSUE_URL
-  const isLoginRequest = config.url === '/v1/auth/login'
-  const isLogoutRequest = config.url === TOKEN_LOGOUT_URL
 
-  if (!accessToken && !isTokenReissueRequest && !isLoginRequest && !isLogoutRequest) {
-    try {
-      accessToken = await reissueAccessToken()
-    } catch (error) {
-      authStore.logout()
+  const accessToken =
+    authStore.accessToken ||
+    sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
 
-      return Promise.reject(error)
-    }
-  }
+  const isDevToken =
+    import.meta.env.DEV &&
+    accessToken?.startsWith('dev-')
 
   if (accessToken && !isDevToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
@@ -123,13 +98,23 @@ api.interceptors.request.use(async (config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  async (error: AxiosError<ApiResponse<unknown>>) => {
-    const authStore = useAuthStore()
-    const originalRequest = error.config as RetryableRequestConfig | undefined
-    const isUnauthorized = error.response?.status === 401
-    const isTokenReissueRequest = originalRequest?.url === TOKEN_REISSUE_URL
 
-    if (!originalRequest || !isUnauthorized || originalRequest._retry || isTokenReissueRequest) {
+  async (error: ApiError) => {
+    const authStore = useAuthStore()
+    const originalRequest =
+      error.config as RetryableRequestConfig | undefined
+
+    if (!originalRequest) {
+      return Promise.reject(error)
+    }
+
+    const isUnauthorized = error.response?.status === 401
+
+    if (
+      !isUnauthorized ||
+      originalRequest._retry ||
+      isAuthRequest(originalRequest.url)
+    ) {
       return Promise.reject(error)
     }
 
@@ -142,7 +127,8 @@ api.interceptors.response.use(
 
       return api(originalRequest as AxiosRequestConfig)
     } catch (refreshError) {
-      authStore.logout()
+      authStore.clearAuthInfo()
+      await router.replace('/login')
 
       return Promise.reject(refreshError)
     }

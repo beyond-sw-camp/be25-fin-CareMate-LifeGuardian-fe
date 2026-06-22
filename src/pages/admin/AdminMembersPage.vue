@@ -11,7 +11,16 @@ import {
 } from '@/api/members'
 import type { SalesUserSummary } from '@/api/members'
 
-
+interface RegisterForm {
+  name: string
+  birthDate: string
+  branchId: number
+  rankCode: string
+  phone: string
+  email: string
+  joinedAt: string
+  roleCode: string
+}
 
 // 좌측 목록 검색/필터 상태
 const keyword = ref('')
@@ -29,14 +38,16 @@ const isAddingUser = ref(false)
 const activeDetailTab = ref<'info' | 'control'>('info') // 'info' 기본정보, 'control' 계정제어
 
 // 신규 등록 폼 상태
-const registerForm = ref({
+const todayString = () => new Date().toISOString().slice(0, 10)
+
+const registerForm = ref<RegisterForm>({
   name: '',
   birthDate: '',
   branchId: 1, // default to 1 (Gangnam)
   rankCode: '01',
   phone: '',
   email: '',
-  joinedAt: new Date().toISOString().split('T')[0],
+  joinedAt: todayString(),
   roleCode: '02'
 })
 const isRegistering = ref(false)
@@ -77,14 +88,14 @@ const getUserMockDetails = (user: SalesUserSummary) => {
   const birthDay = String((seed % 28) + 1).padStart(2, '0')
   
   const rankCodes = ['01', '02', '03', '04', '05']
-  const rankCode = rankCodes[seed % 4] // 지점장 05는 지점당 1명이므로 사원~과장 범위 할당
+  const rankCode = rankCodes[seed % 4] ?? '01' // 지점장 05는 지점당 1명이므로 사원~과장 범위 할당
   
   const phoneMid = String(1000 + (seed % 9000))
   const phoneEnd = String(1000 + ((seed * 7) % 9000))
 
   return {
     birthDate: `${birthYear}-${birthMonth}-${birthDay}`,
-    branchName: branchMap[1], // 기본 지점 1 (강남지점)
+    branchName: branchMap[1] ?? '서울강남지점', // 기본 지점 1 (강남지점)
     positionName: rankMap[rankCode] || 'FC',
     rankCode: rankCode,
     phone: `010-${phoneMid}-${phoneEnd}`,
@@ -147,7 +158,7 @@ const openAddForm = () => {
     rankCode: '01',
     phone: '',
     email: '',
-    joinedAt: new Date().toISOString().split('T')[0],
+    joinedAt: todayString(),
     roleCode: '02'
   }
 }
