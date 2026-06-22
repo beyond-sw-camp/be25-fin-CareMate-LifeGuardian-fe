@@ -6,11 +6,14 @@ import {
   IS_FIRST_LOGIN_STORAGE_KEY,
   USER_BRANCH_ID_STORAGE_KEY,
   USER_BRANCH_NAME_STORAGE_KEY,
+  USER_REGION_STORAGE_KEY,
   USER_ID_STORAGE_KEY,
   USER_NAME_STORAGE_KEY,
   USER_ROLE_STORAGE_KEY,
   type UserRole,
 } from '@/constants/auth'
+
+export type { UserRole } from '@/constants/auth'
 
 export interface LoginInfo {
   accessToken: string
@@ -35,6 +38,8 @@ export const useAuthStore = defineStore('auth', () => {
   const name = ref(localStorage.getItem(USER_NAME_STORAGE_KEY))
   const branchId = ref(localStorage.getItem(USER_BRANCH_ID_STORAGE_KEY))
   const branchName = ref(localStorage.getItem(USER_BRANCH_NAME_STORAGE_KEY))
+  const region = ref(localStorage.getItem(USER_REGION_STORAGE_KEY))
+  const branch = computed(() => branchName.value)
 
   const isAuthenticated = computed(() => {
     return Boolean(role.value)
@@ -79,6 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
     name.value = null
     branchId.value = null
     branchName.value = null
+    region.value = null
 
     sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY)
     sessionStorage.removeItem(USER_ID_STORAGE_KEY)
@@ -88,20 +94,28 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(USER_NAME_STORAGE_KEY)
     localStorage.removeItem(USER_BRANCH_ID_STORAGE_KEY)
     localStorage.removeItem(USER_BRANCH_NAME_STORAGE_KEY)
+    localStorage.removeItem(USER_REGION_STORAGE_KEY)
+  }
+
+  const clearAuthInfo = () => {
+    logout()
   }
 
   return {
-  accessToken,
-  userId,
-  name,
-  branchId,
-  branchName,
-  role,
-  isFirstLogin,
-  isAuthenticated,
-  setLoginInfo,
-  setAccessToken,
-  logout,
-  clearAuthInfo: logout,
-}
+    accessToken,
+    userId,
+    name,
+    branchId,
+    branchName,
+    branch,
+    region,
+    role,
+    isFirstLogin,
+    isAuthenticated,
+    setLoginInfo,
+    setAccessToken,
+    completeFirstLogin,
+    logout,
+    clearAuthInfo,
+  }
 })
