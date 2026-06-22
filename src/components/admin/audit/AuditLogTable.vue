@@ -11,11 +11,11 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'filterChange', filters: { startDate: string; endDate: string; actionTypeCode: string }): void
-  (e: 'pageChange', page: number): void
+  filterChange: [filters: { startDate: string; endDate: string; actionTypeCode: string }]
+  pageChange: [page: number]
 }>()
 
-const getTodayString = () => new Date().toISOString().split('T')[0]
+const getTodayString = () => new Date().toISOString().slice(0, 10)
 
 // 로컬 필터 상태 (기본값 오늘)
 const startDate = ref(getTodayString())

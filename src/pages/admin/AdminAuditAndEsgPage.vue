@@ -16,11 +16,11 @@ import type { HourlyPowerProfile, AuditLogInfo } from '@/api/admin'
 import type { PiiSecureSummary } from '@/api/members'
 
 // Helper date methods
-const getTodayString = () => new Date().toISOString().split('T')[0]
+const getTodayString = () => new Date().toISOString().slice(0, 10)
 const getYesterdayString = () => {
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
-  return yesterday.toISOString().split('T')[0]
+  return yesterday.toISOString().slice(0, 10)
 }
 
 // 1. ESG KPI 데이터

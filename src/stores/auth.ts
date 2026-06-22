@@ -91,17 +91,17 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    accessToken,
-    userId,
-    name,
-    branchId,
-    branchName,
-    role,
-    isFirstLogin,
-    isAuthenticated,
-    setLoginInfo,
-    setAccessToken,
-    completeFirstLogin,
-    logout,
-  }
+  accessToken,
+  userId,
+  name,
+  branchId,
+  branchName,
+  role,
+  isFirstLogin,
+  isAuthenticated,
+  setLoginInfo,
+  setAccessToken,
+  logout,
+  clearAuthInfo: logout,
+}
 })
