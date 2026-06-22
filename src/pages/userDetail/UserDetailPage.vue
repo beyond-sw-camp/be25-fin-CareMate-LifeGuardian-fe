@@ -8,7 +8,15 @@ import UserInfoGrid from '@/components/userDetail/UserInfoGrid.vue'
 import UserProfileCard from '@/components/userDetail/UserProfileCard.vue'
 import UserRecommendationCard from '@/components/userDetail/UserRecommendationCard.vue'
 import UserScriptCard from '@/components/userDetail/UserScriptCard.vue'
-import { getUserDetail, type UserDetail } from '@/api/userDetail'
+import {
+  getConsultationScript,
+  getAiRagRecommendation,
+  getRuleEngineRecommendation,
+  getUserDetail,
+  type ConsultationScript,
+  type InsuranceRecommendation,
+  type UserDetail,
+} from '@/api/userDetail'
 import {
   buildChildInfo,
   buildGuardianInfo,
@@ -20,8 +28,16 @@ const route = useRoute()
 const router = useRouter()
 
 const user = ref<UserDetail | null>(null)
+const consultationScript = ref<ConsultationScript | null>(null)
+const ruleRecommendation = ref<InsuranceRecommendation | null>(null)
+const aiRecommendation = ref<InsuranceRecommendation | null>(null)
 const isLoading = ref(true)
+const isInsightLoading = ref(false)
 const errorMessage = ref('')
+const scriptErrorMessage = ref('')
+const ruleRecommendationErrorMessage = ref('')
+const aiRecommendationErrorMessage = ref('')
+let activeLoadId = 0
 
 const customerId = computed(() => Number(route.params.customerId))
 const conversionStatusCode = computed(() => String(route.query.conversionStatusCode ?? ''))
@@ -42,18 +58,107 @@ const openReport = () => {
   window.open(reportUrl.value, '_blank', 'noopener,noreferrer')
 }
 
-const getErrorMessage = (error: unknown) => {
+const buildFallbackConsultationScript = (targetUser: UserDetail): ConsultationScript => {
+  const childName = targetUser.childName || '고객'
+  const guardianName = targetUser.guardianName || '보호자'
+  const dDay = targetUser.insuranceAgeShiftDate
+    ? `보험나이 변경 기준일(${targetUser.insuranceAgeShiftDate})`
+    : '보험나이 변경 시점'
+
+  return {
+    triggerName: '기본 상담 템플릿',
+    title: '상담 도입 안내',
+    lines: [
+      `안녕하세요, ${guardianName}님. ${childName}님의 보장 내용을 함께 점검해보려고 연락드렸습니다.`,
+      `${dDay} 전에 현재 가입 보장과 필요한 보장 범위를 확인해두시면 이후 보험료와 보장 공백을 줄이는 데 도움이 됩니다.`,
+      '오늘은 생활주기와 기존 계약 정보를 기준으로 우선 확인이 필요한 보장 항목을 짧게 안내드리겠습니다.',
+    ],
+  }
+}
+
+const getErrorMessage = (error: unknown, fallbackMessage = '고객 정보를 불러오지 못했습니다.') => {
   if (axios.isAxiosError(error)) {
-    return error.response?.data?.message ?? '고객 정보를 불러오지 못했습니다.'
+    const status = error.response?.status
+    const serverMessage = error.response?.data?.message
+
+    if (serverMessage) return serverMessage
+    if (status === 500) return `${fallbackMessage} 백엔드 서버 오류(500)가 발생했습니다.`
+
+    return fallbackMessage
   }
 
-  return '고객 정보를 불러오지 못했습니다.'
+  return fallbackMessage
+}
+
+const resetCustomerInsights = () => {
+  isInsightLoading.value = false
+  scriptErrorMessage.value = ''
+  ruleRecommendationErrorMessage.value = ''
+  aiRecommendationErrorMessage.value = ''
+  consultationScript.value = null
+  ruleRecommendation.value = null
+  aiRecommendation.value = null
+}
+
+const loadCustomerInsights = async (loadId: number) => {
+  if (!Number.isInteger(customerId.value) || customerId.value <= 0 || !conversionStatusCode.value) {
+    return
+  }
+
+  isInsightLoading.value = true
+  scriptErrorMessage.value = ''
+  ruleRecommendationErrorMessage.value = ''
+  aiRecommendationErrorMessage.value = ''
+
+  const [scriptResult, ruleResult, aiResult] = await Promise.allSettled([
+    getConsultationScript(customerId.value),
+    getRuleEngineRecommendation(customerId.value),
+    getAiRagRecommendation(customerId.value),
+  ])
+
+  if (loadId !== activeLoadId) return
+
+  if (scriptResult.status === 'fulfilled') {
+    consultationScript.value = scriptResult.value
+  } else {
+    if (user.value) {
+      consultationScript.value = buildFallbackConsultationScript(user.value)
+    }
+
+    scriptErrorMessage.value = getErrorMessage(
+      scriptResult.reason,
+      '상담 스크립트를 불러오지 못했습니다.',
+    )
+  }
+
+  if (ruleResult.status === 'fulfilled') {
+    ruleRecommendation.value = ruleResult.value
+  } else {
+    ruleRecommendationErrorMessage.value = getErrorMessage(
+      ruleResult.reason,
+      '자체 룰 엔진 추천 정보를 불러오지 못했습니다.',
+    )
+  }
+
+  if (aiResult.status === 'fulfilled') {
+    aiRecommendation.value = aiResult.value
+  } else {
+    aiRecommendationErrorMessage.value = getErrorMessage(
+      aiResult.reason,
+      'AI 추천 정보를 불러오지 못했습니다.',
+    )
+  }
+
+  isInsightLoading.value = false
 }
 
 const loadUser = async () => {
+  const loadId = activeLoadId + 1
+  activeLoadId = loadId
   isLoading.value = true
   errorMessage.value = ''
   user.value = null
+  resetCustomerInsights()
 
   if (!Number.isInteger(customerId.value) || customerId.value <= 0) {
     errorMessage.value = '유효하지 않은 고객 번호입니다.'
@@ -68,11 +173,19 @@ const loadUser = async () => {
   }
 
   try {
-    user.value = await getUserDetail(customerId.value, conversionStatusCode.value)
+    const nextUser = await getUserDetail(customerId.value, conversionStatusCode.value)
+    if (loadId !== activeLoadId) return
+
+    user.value = nextUser
+    isLoading.value = false
+    void loadCustomerInsights(loadId)
   } catch (error) {
+    if (loadId !== activeLoadId) return
     errorMessage.value = getErrorMessage(error)
   } finally {
-    isLoading.value = false
+    if (loadId === activeLoadId) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -108,8 +221,18 @@ watch(
       <div v-else-if="user" class="detail-content">
         <UserProfileCard :user="user" :is-potential-customer="isPotentialCustomer" />
         <UserInfoGrid :child-info="childInfo" :guardian-info="guardianInfo" />
-        <UserRecommendationCard />
-        <UserScriptCard />
+        <UserScriptCard
+          :script="consultationScript"
+          :is-loading="isInsightLoading"
+          :error-message="scriptErrorMessage"
+        />
+        <UserRecommendationCard
+          :rule-recommendation="ruleRecommendation"
+          :ai-recommendation="aiRecommendation"
+          :is-loading="isInsightLoading"
+          :rule-error-message="ruleRecommendationErrorMessage"
+          :ai-error-message="aiRecommendationErrorMessage"
+        />
       </div>
     </main>
   </div>

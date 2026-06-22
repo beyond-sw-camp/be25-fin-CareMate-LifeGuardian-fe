@@ -10,15 +10,17 @@ import {
   USER_ROLE_STORAGE_KEY,
   type UserRole,
 } from '../../constants/auth'
+import { useAuthStore } from '@/stores/auth'
 
 type SidebarItem = {
   label: string
   to: string
 }
 
-const role = sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
-const isLoggedIn = Boolean(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || role)
-const isAdmin = isLoggedIn && role === ADMIN_ROLE
+const authStore = useAuthStore()
+const role = computed(() => authStore.role ?? (sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null))
+const isLoggedIn = computed(() => Boolean(authStore.accessToken || sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || role.value))
+const isAdmin = computed(() => isLoggedIn.value && role.value === ADMIN_ROLE)
 const sidebarWidth = ref(208)
 const isResizing = ref(false)
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'lifeguardian.sidebar.collapsed'
@@ -61,7 +63,7 @@ onBeforeUnmount(() => {
   stopResize()
 })
 
-const displayName = localStorage.getItem(USER_NAME_STORAGE_KEY) ?? (isAdmin ? '홍길동' : '김설계')
+const displayName = localStorage.getItem(USER_NAME_STORAGE_KEY) ?? (isAdmin.value ? '홍길동' : '김설계')
 const branch = localStorage.getItem(USER_BRANCH_STORAGE_KEY) ?? '강남지점'
 const region = localStorage.getItem(USER_REGION_STORAGE_KEY)
 const branchName = region ? `${region} ${branch}` : branch
@@ -79,19 +81,25 @@ const adminItems: SidebarItem[] = [
   { label: '시스템 감사 및 ESG', to: '/admin/audit&esg' }
 ]
 
-const defaultItems = isAdmin ? adminItems : salesItems
-const logoTo = role === SALES_ROLE ? '/sales/dashboard' : '/admin/dashboard'
-const profileParts = isAdmin
-  ? {
+const defaultItems = computed(() => (isAdmin.value ? adminItems : salesItems))
+const logoTo = computed(() => {
+  if (role.value === ADMIN_ROLE) return '/admin/dashboard'
+  if (role.value === SALES_ROLE) return '/sales/dashboard'
+  return '/login'
+})
+const profileParts = computed(() =>
+  isAdmin.value
+    ? {
       primary: branchName,
       secondary: `${displayName} 지점장`,
       meta: '관리자 계정',
     }
-  : {
+    : {
       primary: displayName,
       secondary: branchName,
       meta: '전속 설계사',
-    }
+    },
+)
 const profileInitial = displayName.slice(0, 1)
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value
@@ -111,7 +119,7 @@ const props = withDefaults(
   },
 )
 
-const navigationItems = props.items ?? defaultItems
+const navigationItems = computed(() => props.items ?? defaultItems.value)
 const navIconClass = (label: string) => {
   if (label.includes('대시보드')) return 'sidebar__nav-icon--dashboard'
   if (label.includes('영업') || label.includes('계약')) return 'sidebar__nav-icon--sales'
