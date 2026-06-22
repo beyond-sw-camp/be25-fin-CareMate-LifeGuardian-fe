@@ -12,6 +12,8 @@ import {
   getDashboardAchievement,
   getDashboardSummary,
   getTodayContactCustomers,
+  sendDashboardReport,
+  sendDashboardReportsInBulk,
   sendDashboardWebform,
   sendDashboardWebformsInBulk,
   type ContactCustomer,
@@ -35,7 +37,7 @@ const sendingReportIds = ref<number[]>([])
 const isBulkWebFormSending = ref(false)
 const isBulkReportSending = ref(false)
 
-const CONTACT_PAGE_SIZE = 5
+const CONTACT_PAGE_SIZE = 4
 const contactCurrentPage = ref(1)
 
 const contactTotalPages = computed(() =>
@@ -162,18 +164,77 @@ const handleSendBulkWebForms = async () => {
   }
 }
 
-const handleSendReport = (customer: ContactCustomer) => {
-  showNoticeMessage(
-    `${customer.customerName} 고객 리포트 발송 API는 다음 단계에서 연결합니다.`,
-    'success',
-  )
+const handleSendReport = async (customer: ContactCustomer) => {
+  const customerId = customer.potentialCustomerId
+
+  if (sendingReportIds.value.includes(customerId)) return
+
+  try {
+    sendingReportIds.value = [...sendingReportIds.value, customerId]
+
+    const result = await sendDashboardReport(customerId)
+
+    const targetCustomer = contactCustomers.value.find(
+      (item) => item.potentialCustomerId === customerId,
+    )
+
+    if (targetCustomer) {
+      targetCustomer.reportSendStatusCode = result.sendStatusCode
+      targetCustomer.reportSendStatusName = '발송완료'
+      targetCustomer.reportSendEnabled = false
+    }
+
+    showNoticeMessage(
+      `${result.customerName || customer.customerName} 고객에게 리포트를 발송했습니다.`,
+      'success',
+    )
+  } catch (error) {
+    showNoticeMessage(
+      getErrorMessage(error, '리포트 발송에 실패했습니다.'),
+      'error',
+    )
+  } finally {
+    sendingReportIds.value = sendingReportIds.value.filter(
+      (id) => id !== customerId,
+    )
+  }
 }
 
-const handleSendBulkReports = () => {
-  showNoticeMessage(
-    '리포트 일괄 발송 API는 다음 단계에서 연결합니다.',
-    'success',
-  )
+const handleSendBulkReports = async () => {
+  if (isBulkReportSending.value) return
+
+  const reportIds = contactCustomers.value
+    .filter((customer) => customer.reportSendEnabled)
+    .map((customer) => customer.reportId)
+    .filter((reportId): reportId is number => typeof reportId === 'number')
+
+  if (reportIds.length === 0) {
+    showNoticeMessage(
+      '발송 가능한 리포트가 없습니다.',
+      'error',
+    )
+    return
+  }
+
+  try {
+    isBulkReportSending.value = true
+
+    const result = await sendDashboardReportsInBulk(reportIds)
+
+    showNoticeMessage(
+      `리포트 발송 완료: 성공 ${result.successCount}건, 제외 ${result.skippedCount}건, 실패 ${result.failedCount}건`,
+      'success',
+    )
+
+    await loadDashboard()
+  } catch (error) {
+    showNoticeMessage(
+      getErrorMessage(error, '리포트 일괄 발송에 실패했습니다.'),
+      'error',
+    )
+  } finally {
+    isBulkReportSending.value = false
+  }
 }
 
 const handleContactPageChange = (page: number) => {
@@ -311,7 +372,7 @@ onMounted(() => {
 .dashboard-contact {
   display: flex;
   flex-direction: column;
-  margin-top: 28px;
+  margin-top: 24px;
   border: 1px solid #e3e8f0;
   box-shadow: none;
   padding: 14px 16px 18px;

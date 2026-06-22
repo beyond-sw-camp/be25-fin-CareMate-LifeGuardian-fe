@@ -28,7 +28,7 @@ const isParentSearchModalOpen = ref(false)
 const isChildRegisterModalOpen = ref(false)
 const selectedParent = ref<ParentCustomerSearchResponse | null>(null)
 
-const POTENTIAL_PAGE_SIZE = 15
+const POTENTIAL_PAGE_SIZE = 13
 const currentPage = ref(1)
 
 const totalPages = computed(() =>

@@ -52,6 +52,26 @@ export interface WebformSendResponse {
   issuedAt: string
 }
 
+export interface ReportSendResult {
+    customerId: number
+    customerName: string
+    sendStatusCode: string
+    sendStatusName: string
+    sendAt: string
+}
+
+export interface ReportBulkSendResult {
+  requestedCount: number
+  successCount: number
+  skippedCount: number
+  failedCount: number
+  sentAt: string
+}
+
+export interface ReportBulkSendRequest {
+  reportIds?: number[]
+}
+
 export async function getDashboardSummary() {
   const response = await api.get<ApiResponse<DashboardSummary>>(
     '/v1/dashboard/summary',
@@ -87,6 +107,31 @@ export async function sendDashboardWebform(potentialCustomerId: number) {
 export async function sendDashboardWebformsInBulk() {
   const response = await api.post<ApiResponse<WebformSendResponse[]>>(
     '/v1/webforms/send/bulk',
+  )
+
+  return response.data.data
+}
+
+export async function sendDashboardReport(potentialCustomerId: number) {
+  const response = await api.post<ApiResponse<ReportSendResult>>(
+    `/v1/reports/${potentialCustomerId}/send`,
+    undefined,
+    {
+      params: {
+        conversionStatusCode: '01',
+      },
+    },
+  )
+
+  return response.data.data
+}
+
+export async function sendDashboardReportsInBulk(reportIds?: number[]) {
+  const data: ReportBulkSendRequest = reportIds?.length ? { reportIds } : {}
+
+  const response = await api.post<ApiResponse<ReportBulkSendResult>>(
+    '/v1/reports/send/bulk',
+    data,
   )
 
   return response.data.data

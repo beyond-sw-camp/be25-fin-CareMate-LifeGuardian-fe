@@ -96,15 +96,18 @@ const isWebFormSending = (customer: ContactCustomer) =>
   props.sendingWebFormIds?.includes(customer.potentialCustomerId) ?? false
 
 const isReportSending = (customer: ContactCustomer) =>
-  typeof customer.reportId === 'number' &&
-  (props.sendingReportIds?.includes(customer.reportId) ?? false)
+  (props.sendingReportIds?.includes(customer.potentialCustomerId) ?? false)
 
 const isWebFormSent = (customer: ContactCustomer) => {
   return customer.webFormStatusName === '발송완료'
 }
 
 const isReportSent = (customer: ContactCustomer) => {
-  return customer.reportSendStatusName === '발송완료'
+  return (
+    customer.reportSendStatusCode === '02' ||
+    customer.reportSendStatusName === '발송완료' ||
+    customer.reportSendStatusName === '발송성공'
+  )
 }
 
 const webFormButtonLabel = (customer: ContactCustomer) => {
