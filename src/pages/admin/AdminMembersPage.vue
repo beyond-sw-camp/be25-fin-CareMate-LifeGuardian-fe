@@ -11,16 +11,7 @@ import {
 } from '@/api/members'
 import type { SalesUserSummary } from '@/api/members'
 
-interface RegisterForm {
-  name: string
-  birthDate: string
-  branchId: number
-  rankCode: string
-  phone: string
-  email: string
-  joinedAt: string
-  roleCode: string
-}
+
 
 // 좌측 목록 검색/필터 상태
 const keyword = ref('')
@@ -38,16 +29,14 @@ const isAddingUser = ref(false)
 const activeDetailTab = ref<'info' | 'control'>('info') // 'info' 기본정보, 'control' 계정제어
 
 // 신규 등록 폼 상태
-const todayString = () => new Date().toISOString().slice(0, 10)
-
-const registerForm = ref<RegisterForm>({
+const registerForm = ref({
   name: '',
   birthDate: '',
   branchId: 1, // default to 1 (Gangnam)
   rankCode: '01',
   phone: '',
   email: '',
-  joinedAt: todayString(),
+  joinedAt: new Date().toISOString().split('T')[0],
   roleCode: '02'
 })
 const isRegistering = ref(false)
@@ -86,16 +75,16 @@ const getUserMockDetails = (user: SalesUserSummary) => {
   const birthYear = 1980 + (seed % 20)
   const birthMonth = String((seed % 12) + 1).padStart(2, '0')
   const birthDay = String((seed % 28) + 1).padStart(2, '0')
-  
+
   const rankCodes = ['01', '02', '03', '04', '05']
-  const rankCode = rankCodes[seed % 4] ?? '01' // 지점장 05는 지점당 1명이므로 사원~과장 범위 할당
-  
+  const rankCode = rankCodes[seed % 4] // 지점장 05는 지점당 1명이므로 사원~과장 범위 할당
+
   const phoneMid = String(1000 + (seed % 9000))
   const phoneEnd = String(1000 + ((seed * 7) % 9000))
 
   return {
     birthDate: `${birthYear}-${birthMonth}-${birthDay}`,
-    branchName: branchMap[1] ?? '서울강남지점', // 기본 지점 1 (강남지점)
+    branchName: branchMap[1], // 기본 지점 1 (강남지점)
     positionName: rankMap[rankCode] || 'FC',
     rankCode: rankCode,
     phone: `010-${phoneMid}-${phoneEnd}`,
@@ -158,7 +147,7 @@ const openAddForm = () => {
     rankCode: '01',
     phone: '',
     email: '',
-    joinedAt: todayString(),
+    joinedAt: new Date().toISOString().split('T')[0],
     roleCode: '02'
   }
 }
@@ -187,7 +176,7 @@ const submitRegister = async () => {
     }
     showSuccessPopup.value = true
     isAddingUser.value = false
-    
+
     // 리스트 리로드 및 새로 등록된 유저 선택 상태 유도
     await loadSalesUsers()
   } catch (error: any) {
@@ -256,6 +245,30 @@ const handleTransferSuccess = async (transferredCount: number) => {
   selectedUser.value = null
   loadSalesUsers()
 }
+
+// 연락처 입력 시 실시간 포맷팅 처리 함수
+const handlePhoneInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  let value = target.value
+
+  // 숫자가 아닌 모든 문자 제거
+  const cleanValue = value.replace(/[^0-9]/g, '')
+
+  // 한국 휴대폰 번호 포맷팅 적용 (010-XXXX-XXXX 또는 010-XXX-XXXX)
+  let formatted = ''
+  if (cleanValue.length <= 3) {
+    formatted = cleanValue
+  } else if (cleanValue.length <= 6) {
+    formatted = `${cleanValue.slice(0, 3)}-${cleanValue.slice(3)}`
+  } else if (cleanValue.length <= 10) {
+    formatted = `${cleanValue.slice(0, 3)}-${cleanValue.slice(3, 6)}-${cleanValue.slice(6)}`
+  } else {
+    const truncated = cleanValue.slice(0, 11)
+    formatted = `${truncated.slice(0, 3)}-${truncated.slice(3, 7)}-${truncated.slice(7)}`
+  }
+
+  registerForm.value.phone = formatted
+}
 </script>
 
 <template>
@@ -263,35 +276,35 @@ const handleTransferSuccess = async (transferredCount: number) => {
     <AppSidebar active-label="영업사원 관리" />
 
     <main class="app-main">
-      <AppHeader 
-        title="영업사원 관리" 
-        description="지점 소속 영업사원의 입사 등록, 재직 상태 제어 및 컴플라이언스 기준 퇴사 이관 관리를 수행합니다." 
+      <AppHeader
+          title="영업사원 관리"
+          description="지점 소속 영업사원의 입사 등록, 재직 상태 제어 및 컴플라이언스 기준 퇴사 이관 관리를 수행합니다."
       />
 
       <!-- 인사 관리 (Split-View) -->
       <div class="hr-view">
-        
+
         <!-- 좌측: 목록 패널 -->
         <div class="card list-panel">
           <div class="panel-header">
             <div class="search-section">
-              <input 
-                v-model="keyword"
-                class="input search-input"
-                placeholder="이름 또는 사번 검색..."
-                type="text"
-                @keyup.enter="handleSearch"
+              <input
+                  v-model="keyword"
+                  class="input search-input"
+                  placeholder="이름 또는 사번 검색..."
+                  type="text"
+                  @keyup.enter="handleSearch"
               />
               <button class="button button-primary" type="button" @click="handleSearch">검색</button>
             </div>
-            
+
             <div class="filter-section">
-              <select v-model="selectedStatus" class="input select-input">
+              <select v-model="selectedStatus" class="input filter-select">
                 <option value="">재직 상태: 전체</option>
                 <option value="01">활성</option>
                 <option value="02">퇴사</option>
               </select>
-              
+
               <button class="button button-secondary add-btn" type="button" @click="openAddForm">
                 + 사원 등록
               </button>
@@ -306,55 +319,55 @@ const handleTransferSuccess = async (transferredCount: number) => {
             <div v-else class="table-container">
               <table class="data-table">
                 <thead>
-                  <tr>
-                    <th>사번</th>
-                    <th>이름</th>
-                    <th>상태</th>
-                    <th class="text-right">담당고객</th>
-                  </tr>
+                <tr>
+                  <th>사번</th>
+                  <th>이름</th>
+                  <th>상태</th>
+                  <th class="text-right">담당고객</th>
+                </tr>
                 </thead>
                 <tbody>
-                  <tr v-if="salesUsers.length === 0">
-                    <td colspan="4" class="text-center empty-text">조회된 영업사원이 없습니다.</td>
-                  </tr>
-                  <tr 
-                    v-for="user in salesUsers" 
+                <tr v-if="salesUsers.length === 0">
+                  <td colspan="4" class="text-center empty-text">조회된 영업사원이 없습니다.</td>
+                </tr>
+                <tr
+                    v-for="user in salesUsers"
                     :key="user.id"
                     class="clickable-row"
                     :class="{ 'row-selected': selectedUser?.id === user.id }"
                     @click="selectUser(user)"
-                  >
-                    <td class="font-bold text-slate-500">{{ user.employeeId }}</td>
-                    <td class="font-bold">{{ user.name }}</td>
-                    <td>
+                >
+                  <td class="font-bold text-slate-500">{{ user.employeeId }}</td>
+                  <td class="font-bold">{{ user.name }}</td>
+                  <td>
                       <span class="badge" :class="user.statusCode === '01' ? 'badge-active' : 'badge-retired'">
                         {{ user.statusName }}
                       </span>
-                    </td>
-                    <td class="text-right font-bold">{{ user.customerCount }}명</td>
-                  </tr>
+                  </td>
+                  <td class="text-right font-bold">{{ user.customerCount }}명</td>
+                </tr>
                 </tbody>
               </table>
             </div>
 
             <!-- 페이징 컨트롤 -->
             <div class="pagination">
-              <button 
-                class="button button-secondary pagination-btn" 
-                :disabled="currentPage === 1"
-                @click="currentPage--; loadSalesUsers()"
-                type="button"
+              <button
+                  class="button button-secondary pagination-btn"
+                  :disabled="currentPage === 1"
+                  @click="currentPage--; loadSalesUsers()"
+                  type="button"
               >
                 이전
               </button>
               <span class="pagination-info">
                 {{ currentPage }} / {{ totalPages || 1 }} 페이지 (총 {{ totalElements }}명)
               </span>
-              <button 
-                class="button button-secondary pagination-btn" 
-                :disabled="currentPage >= totalPages"
-                @click="currentPage++; loadSalesUsers()"
-                type="button"
+              <button
+                  class="button button-secondary pagination-btn"
+                  :disabled="currentPage >= totalPages"
+                  @click="currentPage++; loadSalesUsers()"
+                  type="button"
               >
                 다음
               </button>
@@ -364,7 +377,7 @@ const handleTransferSuccess = async (transferredCount: number) => {
 
         <!-- 우측: 상세 정보 및 등록 폼 패널 -->
         <div class="card detail-panel">
-          
+
           <!-- Case A: 초기 상태 (아무 것도 선택되지 않음) -->
           <div v-if="!selectedUser && !isAddingUser" class="empty-state">
             <div class="empty-state__icon">👤</div>
@@ -393,21 +406,27 @@ const handleTransferSuccess = async (transferredCount: number) => {
 
                 <label class="form-group">
                   <span>직급 <span class="required">*</span></span>
-                  <select v-model="registerForm.rankCode" class="input select-input" required>
+                  <select v-model="registerForm.rankCode" class="input" required>
                     <option v-for="(name, code) in rankMap" :key="code" :value="code">{{ name }}</option>
                   </select>
                 </label>
 
                 <label class="form-group">
                   <span>소속 지점 <span class="required">*</span></span>
-                  <select v-model="registerForm.branchId" class="input select-input" required>
+                  <select v-model="registerForm.branchId" class="input" required>
                     <option v-for="(name, id) in branchMap" :key="id" :value="Number(id)">{{ name }}</option>
                   </select>
                 </label>
 
                 <label class="form-group">
                   <span>연락처 <span class="required">*</span></span>
-                  <input v-model.trim="registerForm.phone" class="input" required placeholder="010-XXXX-XXXX" />
+                  <input
+                      v-model.trim="registerForm.phone"
+                      class="input"
+                      required
+                      placeholder="010-XXXX-XXXX"
+                      @input="handlePhoneInput"
+                  />
                 </label>
 
                 <label class="form-group">
@@ -444,21 +463,21 @@ const handleTransferSuccess = async (transferredCount: number) => {
                   <span class="user-id">사번: {{ selectedUser.employeeId }}</span>
                 </div>
               </div>
-              
+
               <div class="detail-tabs">
-                <button 
-                  class="detail-tab"
-                  :class="{ 'detail-tab--active': activeDetailTab === 'info' }"
-                  @click="activeDetailTab = 'info'"
-                  type="button"
+                <button
+                    class="detail-tab"
+                    :class="{ 'detail-tab--active': activeDetailTab === 'info' }"
+                    @click="activeDetailTab = 'info'"
+                    type="button"
                 >
                   기본 정보
                 </button>
-                <button 
-                  class="detail-tab"
-                  :class="{ 'detail-tab--active': activeDetailTab === 'control' }"
-                  @click="activeDetailTab = 'control'"
-                  type="button"
+                <button
+                    class="detail-tab"
+                    :class="{ 'detail-tab--active': activeDetailTab === 'control' }"
+                    @click="activeDetailTab = 'control'"
+                    type="button"
                 >
                   계정 제어
                 </button>
@@ -520,13 +539,13 @@ const handleTransferSuccess = async (transferredCount: number) => {
                       <h5 class="control-title">시스템 접속 권한</h5>
                       <p class="control-desc">토글 스위치를 통해 계정의 활성화 상태를 제어합니다. 비활성화 시 즉각 로그아웃 처리됩니다.</p>
                     </div>
-                    
+
                     <label class="toggle-switch">
-                      <input 
-                        type="checkbox" 
-                        :checked="selectedUser.statusCode === '01'"
-                        @change="handleStatusToggle"
-                        :disabled="selectedUser.statusCode === '02'" 
+                      <input
+                          type="checkbox"
+                          :checked="selectedUser.statusCode === '01'"
+                          @change="handleStatusToggle"
+                          :disabled="selectedUser.statusCode === '02'"
                       />
                       <span class="slider" :class="{ 'slider-disabled': selectedUser.statusCode === '02' }"></span>
                     </label>
@@ -547,11 +566,11 @@ const handleTransferSuccess = async (transferredCount: number) => {
                     잔여 고객이 존재하여 퇴사 처리가 불가능합니다. 퇴사를 진행하려면 다른 사원에게 고객을 먼저 이관하셔야 합니다.
                   </div>
 
-                  <button 
-                    class="button button-danger retire-btn" 
-                    type="button" 
-                    :disabled="selectedUser.statusCode === '02'"
-                    @click="handleRetireClick"
+                  <button
+                      class="button button-danger retire-btn"
+                      type="button"
+                      :disabled="selectedUser.statusCode === '02'"
+                      @click="handleRetireClick"
                   >
                     {{ selectedUser.statusCode === '02' ? '퇴사 처리 완료됨' : '사원 퇴사 처리 진행' }}
                   </button>
@@ -572,7 +591,7 @@ const handleTransferSuccess = async (transferredCount: number) => {
         </div>
         <div class="modal-body">
           <p class="popup-desc">영업사원 계정이 성공적으로 등록되었으며, 임시 비밀번호가 개설되었습니다.</p>
-          
+
           <div class="credentials-card">
             <div class="credential-item">
               <span class="cred-label">발급된 사번</span>
@@ -595,13 +614,13 @@ const handleTransferSuccess = async (transferredCount: number) => {
     </div>
 
     <!-- 고객 이관 팝업 모달 -->
-    <CustomerTransferModal 
-      :is-open="isTransferModalOpen"
-      :from-user-id="selectedUser?.id || 0"
-      :from-user-name="selectedUser?.name || ''"
-      :remaining-count="transferUserCount"
-      @close="isTransferModalOpen = false"
-      @success="handleTransferSuccess"
+    <CustomerTransferModal
+        :is-open="isTransferModalOpen"
+        :from-user-id="selectedUser?.id || 0"
+        :from-user-name="selectedUser?.name || ''"
+        :remaining-count="transferUserCount"
+        @close="isTransferModalOpen = false"
+        @success="handleTransferSuccess"
     />
   </div>
 </template>
@@ -695,7 +714,7 @@ const handleTransferSuccess = async (transferredCount: number) => {
   gap: 8px;
 }
 
-.select-input {
+.filter-select {
   flex: 1;
   font-size: 12px;
 }
@@ -1194,5 +1213,31 @@ input:checked + .slider::before {
   .list-panel {
     max-height: 400px;
   }
+}
+
+.modal-backdrop {
+  z-index: 1000;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 24px 20px;
+  border-top: 1px solid var(--color-border);
 }
 </style>
