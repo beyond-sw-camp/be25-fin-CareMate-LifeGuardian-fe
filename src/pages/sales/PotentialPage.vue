@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from 'axios'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import AppHeader from '../../components/common/Header.vue'
 import AppSidebar from '../../components/common/Sidebar.vue'
@@ -152,8 +152,26 @@ const handlePageChange = (page: number) => {
   selectedCustomerIds.value = []
 }
 
+const BASE_PAGE_WIDTH = 1240
+const scale = ref(1)
+
+const updateScale = () => {
+  const sidebarWidth = 208
+  const horizontalPadding = 50
+  const availableWidth = window.innerWidth - sidebarWidth - horizontalPadding
+
+  scale.value = Math.min(1, availableWidth / BASE_PAGE_WIDTH)
+}
+
 onMounted(() => {
   void loadPotentialCustomers()
+
+  updateScale()
+  window.addEventListener('resize', updateScale)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateScale)
 })
 </script>
 
@@ -163,7 +181,6 @@ onMounted(() => {
 
     <main class="app-main potential-page__main">
       <AppHeader title="잠재고객 관리" />
-
       <section class="card potential-list">
         <div class="potential-list__header">
           <h3 class="potential-section-title">
@@ -172,15 +189,18 @@ onMounted(() => {
               총 {{ potentialCustomers.length }}건
             </span>
           </h3>
-
-          <div
-            v-if="selectedCustomerIds.length > 0"
-            class="potential-list__selected-actions"
-          >
+          <div class="potential-list__selected-actions">
+            <button
+              class="potential-button potential-button--register"
+              type="button"
+              @click="handleOpenRegisterModal"
+            >
+              등록
+            </button>
             <button
               class="potential-button potential-button--danger"
               type="button"
-              :disabled="isDeleting"
+              :disabled="selectedCustomerIds.length === 0 || isDeleting"
               @click="handleDeleteSelectedCustomers"
             >
               {{ isDeleting ? '삭제 중' : '삭제' }}
@@ -195,7 +215,6 @@ onMounted(() => {
             </button>
           </div>
         </div>
-
         <p
           v-if="noticeMessage"
           class="potential-list__notice"
@@ -204,39 +223,27 @@ onMounted(() => {
         >
           {{ noticeMessage }}
         </p>
-
         <p
           v-if="errorMessage"
           class="potential-list__message potential-list__message--error"
         >
           {{ errorMessage }}
         </p>
-
         <p v-else-if="isLoading" class="potential-list__message">
           불러오는 중...
         </p>
-
         <div v-else class="potential-list__table-area">
           <PotentialTable
             v-model:selected-customer-ids="selectedCustomerIds"
             :customers="displayedPotentialCustomers"
           />
         </div>
-
         <div class="potential-list__footer">
           <SalesPagination
             :current-page="currentPage"
             :total-pages="totalPages"
             @change="handlePageChange"
           />
-
-          <button
-            class="potential-register-button"
-            type="button"
-            @click="handleOpenRegisterModal"
-          >
-            + 고객 등록
-          </button>
         </div>
       </section>
     </main>
@@ -282,16 +289,16 @@ onMounted(() => {
 }
 
 .potential-section-title {
-  margin: 0;
+  margin: 0 0 0 6px;
   color: #263142;
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 900;
 }
 
 .potential-list__count {
   margin-left: 5px;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -313,6 +320,7 @@ onMounted(() => {
 }
 
 .potential-button--danger {
+  border: 1px solid #d85a65;
   background: #d85a65;
   color: #ffffff;
 }
@@ -327,6 +335,14 @@ onMounted(() => {
   background: #c5cad3;
   color: #ffffff;
   cursor: default;
+}
+
+.potential-button--danger:disabled {
+  background: #ffffff;
+  color: #d85a65;
+  border: 1px solid #d85a65;
+  cursor: default;
+  opacity: 1;
 }
 
 .potential-list__notice {
@@ -375,23 +391,14 @@ onMounted(() => {
   padding-top: 8px;
 }
 
-.potential-register-button {
-  position: absolute;
-  right: 0;
-  bottom: -50px;
-  min-width: 78px;
-  height: 26px;
-  border: 1px solid #d7dde7;
-  border-radius: 5px;
+.potential-button--register {
+  border: 1.5px solid #5468ff;
   background: #ffffff;
-  color: #263142;
-  padding: 0 10px;
-  font-size: 10px;
-  font-weight: 800;
-  cursor: pointer;
+  color: #5468ff;
 }
 
-.potential-register-button:hover {
+.potential-button--register:hover {
   background: #f6f8fb;
 }
+
 </style>
