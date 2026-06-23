@@ -1,15 +1,34 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { UserDetail } from '@/api/userDetail'
-import {
-  fallback,
-  resolveAgeShiftDDay,
-  resolveLifeStageLabel,
-} from '@/utils/userDetail'
+import { fallback, resolveAgeShiftDDay, resolveLifeStageLabel } from '@/utils/userDetail'
 
-defineProps<{
+const props = defineProps<{
   user: UserDetail
   isPotentialCustomer: boolean
 }>()
+
+const lifeStages = ['영유아기', '아동기', '청소년기', '청년기', '중장년기', '성인']
+
+const lifeStageLabel = computed(() => resolveLifeStageLabel(props.user))
+const ageShiftDDay = computed(() => resolveAgeShiftDDay(props.user) || '-')
+
+const activeLifeStageIndex = computed(() => {
+  if (lifeStageLabel.value.includes('노년기')) return lifeStages.length - 1
+
+  const matchedIndex = lifeStages.findIndex((stage) => lifeStageLabel.value.includes(stage))
+
+  if (matchedIndex >= 0) return matchedIndex
+
+  const age = props.user.childAge
+  if (typeof age !== 'number' || Number.isNaN(age)) return 0
+  if (age < 7) return 0
+  if (age < 13) return 1
+  if (age < 19) return 2
+  if (age < 35) return 3
+  if (age < 65) return 4
+  return 5
+})
 </script>
 
 <template>
@@ -31,9 +50,37 @@ defineProps<{
 
     <aside class="lifecycle-panel">
       <span class="panel-label">생애주기 정보</span>
-      <strong>{{ resolveLifeStageLabel(user) }}</strong>
-      <p>보험나이 변경 기준일 {{ fallback(user.insuranceAgeShiftDate) }}</p>
-      <b>{{ resolveAgeShiftDDay(user) || '-' }}</b>
+      <strong>{{ lifeStageLabel }}</strong>
+      <p class="lifecycle-date">
+        <span>보험나이 변경 기준일</span>
+        <b>{{ ageShiftDDay }}</b>
+      </p>
+
+      <div class="lifecycle-track" aria-hidden="true">
+        <span
+          v-for="(stage, index) in lifeStages"
+          :key="stage"
+          class="lifecycle-step"
+          :class="{
+            'lifecycle-step--past': index < activeLifeStageIndex,
+            'lifecycle-step--active': index === activeLifeStageIndex,
+          }"
+        />
+      </div>
+
+      <div class="lifecycle-labels">
+        <span
+          v-for="(stage, index) in lifeStages"
+          :key="stage"
+          class="lifecycle-label"
+          :class="{
+            'lifecycle-label--edge': index === 0 || index === lifeStages.length - 1,
+            'lifecycle-label--active': index === activeLifeStageIndex,
+          }"
+        >
+          {{ stage }}
+        </span>
+      </div>
     </aside>
   </section>
 </template>
@@ -41,7 +88,7 @@ defineProps<{
 <style scoped>
 .profile-section {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   align-items: center;
   gap: 20px;
   padding: 20px;
@@ -114,35 +161,123 @@ defineProps<{
 .lifecycle-panel {
   display: grid;
   align-content: start;
-  gap: 5px;
-  border: 1px solid #d8e5ff;
-  border-radius: 8px;
-  background: #f8fbff;
-  padding: 16px;
+  gap: 8px;
+  border: 1px solid #cfe0fb;
+  border-radius: 16px;
+  background: #edf5ff;
+  padding: 20px;
+  box-shadow: none;
 }
 
 .panel-label {
   color: var(--color-primary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 900;
 }
 
 .lifecycle-panel strong {
   color: var(--color-text);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 950;
+  line-height: 1.2;
 }
 
-.lifecycle-panel p {
+.lifecycle-date {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.3;
 }
 
-.lifecycle-panel b {
-  margin-top: 4px;
+.lifecycle-date b {
   color: #ef4444;
-  font-size: 20px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.lifecycle-track {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  align-items: center;
+  margin-top: 12px;
+}
+
+.lifecycle-step {
+  position: relative;
+  display: grid;
+  width: 10px;
+  height: 10px;
+  place-self: center;
+  border-radius: 999px;
+  background: #dfe4ea;
+}
+
+.lifecycle-step::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 50%;
+  width: calc(100% + 28px);
+  height: 3px;
+  border-radius: 999px;
+  background: #dfe4ea;
+  transform: translateY(-50%);
+}
+
+.lifecycle-step:first-child::before {
+  display: none;
+}
+
+.lifecycle-step--past,
+.lifecycle-step--past::before {
+  background: #83bfff;
+}
+
+.lifecycle-step--active {
+  width: 16px;
+  height: 16px;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px rgb(26 109 255 / 14%);
+}
+
+.lifecycle-step--active::before {
+  background: #83bfff;
+}
+
+.lifecycle-labels {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  color: #6f7785;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.lifecycle-label {
+  min-width: 0;
+  overflow: visible;
+  color: transparent;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.lifecycle-label:first-child {
+  text-align: left;
+}
+
+.lifecycle-label:last-child {
+  text-align: right;
+}
+
+.lifecycle-label--edge {
+  color: #6f7785;
+}
+
+.lifecycle-label--active {
+  color: var(--color-primary);
+  font-weight: 900;
 }
 
 @media (max-width: 980px) {
@@ -155,6 +290,10 @@ defineProps<{
   .profile-main {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .lifecycle-date {
+    flex-wrap: wrap;
   }
 }
 </style>
