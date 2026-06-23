@@ -118,6 +118,7 @@ const handleSendWebForm = async (customer: ContactCustomer) => {
       `${customer.customerName} 고객에게 웹폼을 발송했습니다.`,
       'success',
     )
+    await loadDashboard()
   } catch (error) {
     showNoticeMessage(
       getErrorMessage(error, '웹폼 발송에 실패했습니다.'),
@@ -154,6 +155,7 @@ const handleSendBulkWebForms = async () => {
       `${results.length}명의 고객에게 웹폼을 발송했습니다.`,
       'success',
     )
+    await loadDashboard()
   } catch (error) {
     showNoticeMessage(
       getErrorMessage(error, '웹폼 일괄 발송에 실패했습니다.'),

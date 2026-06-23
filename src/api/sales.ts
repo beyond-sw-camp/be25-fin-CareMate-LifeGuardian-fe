@@ -29,6 +29,10 @@ export interface SalesCustomer {
   insuredName: string
   webFormId?: number
   webformReceivedAt: string
+  webFormStatusCode?: string
+  webFormStatusName?: string
+  webformStatusCode?: string
+  webformStatusName?: string
   reportId?: number
   reportUrl?: string
   hasReport: boolean
@@ -76,6 +80,16 @@ export interface BulkSendResult {
   skippedCount: number
   failedCount: number
   sentAt: string
+}
+
+export interface WebformSendResult {
+  issuanceId?: number
+  customerId: number
+  conversionStatusCode: string
+  uuidToken: string
+  webformStatusCode: string
+  webformStatusName: string
+  issuedAt: string
 }
 
 export interface ReportBulkSendRequest {
@@ -149,9 +163,17 @@ export async function sendCustomerReportsInBulk(reportIds?: number[]) {
   return response.data.data
 }
 
+export async function sendCustomerWebform(customerId: number, conversionStatusCode: string) {
+  const response = await api.post<ApiResponse<WebformSendResult>>(
+    `/v1/webforms/SALES_STATUS/${conversionStatusCode}/${customerId}/send`,
+  )
+
+  return response.data.data
+}
+
 export async function sendCustomerWebformsInBulk() {
-  const response = await api.post<ApiResponse<BulkSendResult>>(
-    '/v1/webforms/send/bulk',
+  const response = await api.post<ApiResponse<WebformSendResult[]>>(
+    '/v1/webforms/sales-status/send/bulk',
   )
 
   return response.data.data

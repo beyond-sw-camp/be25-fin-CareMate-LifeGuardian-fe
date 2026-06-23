@@ -12,10 +12,12 @@ import {
   getSalesSummary,
   sendCustomerReport,
   sendCustomerReportsInBulk,
+  sendCustomerWebform,
   sendCustomerWebformsInBulk,
   type SalesCustomer,
   type SalesSearchFilters,
   type SalesSummary as SalesSummaryData,
+  type WebformSendResult,
 } from '@/api/sales'
 
 const selectedReportIds = ref<number[]>([])
@@ -30,6 +32,7 @@ const errorMessage = ref('')
 const reportMessage = ref('')
 const reportMessageType = ref<'success' | 'error'>('success')
 const sendingCustomerIds = ref<number[]>([])
+const sendingWebformCustomerIds = ref<number[]>([])
 const isReportBulkSending = ref(false)
 const isWebformBulkSending = ref(false)
 const filters = ref<SalesSearchFilters>({})
@@ -46,6 +49,18 @@ const currentYearMonth = () => {
   return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
+const createEmptySummary = (targetYearMonth: string): SalesSummaryData => ({
+  year: Number(targetYearMonth.slice(0, 4)),
+  month: Number(targetYearMonth.slice(4, 6)),
+  targetCount: 0,
+  contractCount: 0,
+  achievementRate: 0,
+})
+
+const isNotFoundError = (error: unknown) => {
+  return axios.isAxiosError(error) && error.response?.status === 404
+}
+
 // Axios 응답에 서버 메시지가 있으면 화면 오류 문구로 우선 사용
 const getErrorMessage = (error: unknown, fallbackMessage = '영업현황을 불러오지 못했습니다.') => {
   if (axios.isAxiosError(error)) {
@@ -57,9 +72,16 @@ const getErrorMessage = (error: unknown, fallbackMessage = '영업현황을 불�
 
 // KPI 조회 실패가 목록 조회를 막지 않도록 별도로 처리
 const loadSummary = async () => {
+  const targetYearMonth = currentYearMonth()
+
   try {
-    summary.value = await getSalesSummary(currentYearMonth())
-  } catch {
+    summary.value = await getSalesSummary(targetYearMonth)
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      summary.value = createEmptySummary(targetYearMonth)
+      return
+    }
+
     summary.value = null
   }
 }
@@ -104,6 +126,21 @@ const showReportMessage = (message: string, type: 'success' | 'error') => {
     reportMessage.value = ''
     reportMessageTimer = undefined
   }, 7_000)
+}
+
+const applyWebformSendResult = (result: WebformSendResult) => {
+  const targetCustomer = customers.value.find(
+    (customer) =>
+      customer.customerId === result.customerId &&
+      customer.customerStageCode === result.conversionStatusCode,
+  )
+
+  if (!targetCustomer) return
+
+  targetCustomer.webFormStatusCode = result.webformStatusCode
+  targetCustomer.webFormStatusName = result.webformStatusName
+  targetCustomer.webformStatusCode = result.webformStatusCode
+  targetCustomer.webformStatusName = result.webformStatusName
 }
 
 const handleSendReport = async (customer: SalesCustomer) => {
@@ -171,6 +208,27 @@ const handleBulkSend = async () => {
   }
 }
 
+const handleSendWebform = async (customer: SalesCustomer) => {
+  if (sendingWebformCustomerIds.value.includes(customer.customerId)) return
+
+  sendingWebformCustomerIds.value = [...sendingWebformCustomerIds.value, customer.customerId]
+  reportMessage.value = ''
+
+  try {
+    const result = await sendCustomerWebform(customer.customerId, customer.customerStageCode)
+
+    applyWebformSendResult(result)
+    showReportMessage(`${customer.customerName} 고객에게 웹폼을 발송했습니다.`, 'success')
+    await loadSalesList()
+  } catch (error) {
+    showReportMessage(getErrorMessage(error, '웹폼을 발송하지 못했습니다.'), 'error')
+  } finally {
+    sendingWebformCustomerIds.value = sendingWebformCustomerIds.value.filter(
+      (customerId) => customerId !== customer.customerId,
+    )
+  }
+}
+
 const handleWebformBulkSend = async () => {
   if (isWebformBulkSending.value) return
   if (!window.confirm('웹폼을 일괄 발송하시겠습니까?')) return
@@ -179,10 +237,13 @@ const handleWebformBulkSend = async () => {
   reportMessage.value = ''
 
   try {
-    const result = await sendCustomerWebformsInBulk()
+    const results = await sendCustomerWebformsInBulk()
+
+    results.forEach(applyWebformSendResult)
+
     showReportMessage(
-      `웹폼 일괄 발송 완료: 요청 ${result.requestedCount}건, 성공 ${result.successCount}건, 실패 ${result.failedCount}건`,
-      result.failedCount > 0 ? 'error' : 'success',
+      `웹폼 일괄 발송 완료: 성공 ${results.length}건`,
+      'success',
     )
     await loadSalesList()
   } catch (error) {
@@ -242,6 +303,8 @@ onBeforeUnmount(() => {
         v-model:selected-report-ids="selectedReportIds"
         :customers="displayedCustomers"
         :sending-customer-ids="sendingCustomerIds"
+        :sending-webform-customer-ids="sendingWebformCustomerIds"
+        @send-webform="handleSendWebform"
         @send-report="handleSendReport"
       />
         <div class="sales-list__footer">

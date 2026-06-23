@@ -10,18 +10,23 @@ import {
 const props = defineProps<{
   customers: SalesCustomer[]
   sendingCustomerIds?: number[]
+  sendingWebformCustomerIds?: number[]
   selectedReportIds?: number[]
 }>()
 
 const emit = defineEmits<{
   'update:selectedReportIds': [reportIds: number[]]
+  sendWebform: [customer: SalesCustomer]
   sendReport: [customer: SalesCustomer]
 }>()
 
 const SENDABLE_REPORT_STATUS_CODES = new Set(['01', '02', '03'])
+const SENT_WEBFORM_STATUS_CODES = new Set(['02'])
 const selectAllCheckbox = ref<HTMLInputElement | null>(null)
 
 const isSending = (customerId: number) => props.sendingCustomerIds?.includes(customerId) ?? false
+const isWebformSending = (customerId: number) =>
+  props.sendingWebformCustomerIds?.includes(customerId) ?? false
 const isSelectableReport = (customer: SalesCustomer) =>
   typeof customer.reportId === 'number' && customer.reportId > 0 && canShowSendButton(customer)
 const selectableReportIds = computed(() =>
@@ -37,6 +42,23 @@ const canShowSendButton = (customer: SalesCustomer) =>
 const sendButtonLabel = (customer: SalesCustomer) => {
   if (isSending(customer.customerId)) return '발송 중'
   return customer.reportStatusCode === '02' ? '재발송' : '발송'
+}
+const isWebformSent = (customer: SalesCustomer) => {
+  const statusCode = customer.webFormStatusCode ?? customer.webformStatusCode
+  const statusName = customer.webFormStatusName ?? customer.webformStatusName
+
+  return (
+    (statusCode && SENT_WEBFORM_STATUS_CODES.has(statusCode)) ||
+    statusName === '발송완료' ||
+    statusName === '발송 완료'
+  )
+}
+const webformStatusName = (customer: SalesCustomer) =>
+  customer.webFormStatusName ?? customer.webformStatusName ?? '-'
+const webformButtonLabel = (customer: SalesCustomer) => {
+  if (isWebformSending(customer.customerId)) return '발송 중'
+  if (isWebformSent(customer)) return '재발송'
+  return webformStatusName(customer) === '-' ? '발송' : webformStatusName(customer)
 }
 
 const isAllSelected = computed(
@@ -109,26 +131,28 @@ const contractClass = (statusCode?: string) => {
   return statusCode ? classMap[statusCode] ?? 'muted' : 'danger-soft'
 }
 
-const calculateAgeShiftDDay = (ageShiftDate?: string) => {
-  if (!ageShiftDate) return undefined
+const calculateAgeShiftDDay = (customer: SalesCustomer) => {
+  if (typeof customer.ageIncreaseDDay === 'number') return customer.ageIncreaseDDay
+  if (!customer.insuranceAgeShiftDate) return undefined
 
-  const targetDate = new Date(`${ageShiftDate}T00:00:00`)
-  if (Number.isNaN(targetDate.getTime())) return undefined
+  const [year, month, day] = customer.insuranceAgeShiftDate.split('-').map(Number)
+  if (!year || !month || !day) return undefined
 
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const targetTime = Date.UTC(year, month - 1, day)
+  const todayTime = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
 
-  return Math.ceil((targetDate.getTime() - today.getTime()) / 86_400_000)
+  return Math.round((targetTime - todayTime) / 86_400_000)
 }
 
-const ageShiftRowClass = (ageShiftDate?: string) => {
-  const dDay = calculateAgeShiftDDay(ageShiftDate)
+const ageShiftRowClass = (customer: SalesCustomer) => {
+  const dDay = calculateAgeShiftDDay(customer)
   if (dDay === undefined || dDay < 0 || dDay > 30) return undefined
   return dDay <= 7 ? 'sales-table__row--age-shift-near' : 'sales-table__row--age-shift-warning'
 }
 
-const ageShiftGuide = (ageShiftDate?: string) => {
-  const dDay = calculateAgeShiftDDay(ageShiftDate)
+const ageShiftGuide = (customer: SalesCustomer) => {
+  const dDay = calculateAgeShiftDDay(customer)
   if (dDay === undefined || dDay < 0 || dDay > 30) return undefined
   if (dDay === 0) return '상령일 도래 D-Day'
   return dDay <= 7 ? `상령일 임박 D-${dDay}` : `상령일 도래 예정 D-${dDay}`
@@ -161,7 +185,8 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <th>계약 현황</th>
           <th>보험명</th>
           <th>피보험자</th>
-          <th>납입 회수일</th>
+          <th>웹폼 회수일</th>
+          <th>웹폼 발송상태</th>
           <th>리포트 발송상태</th>
           <th>웹폼 발송</th>
           <th>리포트 발송</th>
@@ -171,7 +196,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
         <tr
           v-for="customer in customers"
           :key="customer.customerId"
-          :class="ageShiftRowClass(customer.insuranceAgeShiftDate)"
+          :class="ageShiftRowClass(customer)"
         >
           <td>
             <input
@@ -185,8 +210,8 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <td>
             <RouterLink
               class="customer-name"
-              :class="{ 'customer-name--age-shift': ageShiftGuide(customer.insuranceAgeShiftDate) }"
-              :tabindex="ageShiftGuide(customer.insuranceAgeShiftDate) ? 0 : undefined"
+              :class="{ 'customer-name--age-shift': ageShiftGuide(customer) }"
+              :tabindex="ageShiftGuide(customer) ? 0 : undefined"
               :to="{
                 name: 'user-detail',
                 params: { customerId: customer.customerId },
@@ -195,11 +220,11 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
             >
               {{ customer.customerName }}
               <span
-                v-if="ageShiftGuide(customer.insuranceAgeShiftDate)"
+                v-if="ageShiftGuide(customer)"
                 class="customer-name__tooltip"
                 role="tooltip"
               >
-                {{ ageShiftGuide(customer.insuranceAgeShiftDate) }}
+                {{ ageShiftGuide(customer) }}
               </span>
             </RouterLink>
           </td>
@@ -224,15 +249,18 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <td>{{ customer.insuranceName }}</td>
           <td>{{ customer.insuredName }}</td>
           <td>{{ customer.webformReceivedAt }}</td>
+          <td class="report-status">{{ webformStatusName(customer) }}</td>
           <td class="report-status">{{ customer.reportStatusName }}</td>
           <td>
             <div class="sales-table__actions">
               <button
-                class="report-button report-button--webform report-button--disabled"
+                class="report-button report-button--webform"
+                :class="{ 'report-button--resend': isWebformSent(customer) }"
                 type="button"
-                disabled
+                :disabled="isWebformSending(customer.customerId)"
+                @click="emit('sendWebform', customer)"
               >
-                발송
+                {{ webformButtonLabel(customer) }}
               </button>
             </div>
           </td>
@@ -240,7 +268,10 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
             <div class="sales-table__actions">
               <button
                 class="report-button"
-                :class="{ 'report-button--disabled': !canShowSendButton(customer) }"
+                :class="{
+                  'report-button--resend': customer.reportStatusCode === '02',
+                  'report-button--disabled': !canShowSendButton(customer),
+                }"
                 type="button"
                 :disabled="!canShowSendButton(customer) || isSending(customer.customerId)"
                 @click="emit('sendReport', customer)"
@@ -251,7 +282,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           </td>
         </tr>
         <tr v-if="customers.length === 0">
-          <td class="sales-table__empty" colspan="14">조회된 영업현황이 없습니다.</td>
+          <td class="sales-table__empty" colspan="15">조회된 영업현황이 없습니다.</td>
         </tr>
       </tbody>
     </table>
@@ -470,6 +501,18 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 
 .report-button--webform {
   min-width: 54px;
+}
+
+.report-button--resend {
+  border: 1px solid #4e63e6;
+  background: #f2f5ff;
+  color: #3446c5;
+  box-shadow: inset 0 0 0 1px rgb(78 99 230 / 8%);
+}
+
+.report-button--resend:hover:not(:disabled) {
+  background: #e7ecff;
+  color: #2638b8;
 }
 
 .report-button:hover:not(:disabled) {
