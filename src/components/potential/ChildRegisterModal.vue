@@ -68,7 +68,7 @@ const handleRegister = async () => {
 </script>
 
 <template>
-  <div class="modal-backdrop child-modal" role="presentation" @click.self="emit('close')">
+  <div class="modal-backdrop child-modal" role="presentation">
     <section
       class="modal-card child-modal__card"
       role="dialog"
@@ -141,9 +141,6 @@ const handleRegister = async () => {
         <button class="button button-secondary" type="button" @click="emit('back')">
           이전
         </button>
-        <button class="button button-secondary" type="button" @click="emit('close')">
-          취소
-        </button>
         <button
           class="button button-primary"
           type="button"
@@ -199,17 +196,17 @@ const handleRegister = async () => {
 
 .child-modal__close {
   position: absolute;
-  top: 20px;
-  right: 22px;
+  top: 18px;
+  right: 18px;
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   place-items: center;
   border: 1px solid #e0e6ef;
   border-radius: 9px;
   background: #ffffff;
   color: #667085;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1;
 }
 
@@ -313,9 +310,16 @@ const handleRegister = async () => {
   display: flex;
   flex: 0 0 auto;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 10px;
   border-top: 1px solid #edf0f5;
   background: #fbfcfe;
-  padding: 14px 26px 17px;
+  padding: 14px 20px 17px;
+}
+
+.child-modal__footer .button {
+  min-width: 60px;
+  min-height: 30px;
+  border-radius: 8px;
+  font-size: 14px;
 }
 </style>

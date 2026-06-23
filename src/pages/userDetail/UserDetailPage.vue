@@ -41,6 +41,21 @@ let activeLoadId = 0
 
 const customerId = computed(() => Number(route.params.customerId))
 const conversionStatusCode = computed(() => String(route.query.conversionStatusCode ?? ''))
+
+const isFromDashboard = computed(() => route.query.from === 'dashboard')
+
+const activeSidebarLabel = computed(() =>
+  isFromDashboard.value ? '대시보드' : '영업현황',
+)
+
+const backButtonLabel = computed(() =>
+  isFromDashboard.value ? '← 대시보드' : '← 영업현황',
+)
+
+const backRoutePath = computed(() =>
+  isFromDashboard.value ? '/sales/dashboard' : '/sales',
+)
+
 const resolvedConversionStatusCode = computed(() =>
   resolveDetailConversionStatusCode(user.value, conversionStatusCode.value),
 )
@@ -49,8 +64,8 @@ const reportUrl = computed(() => resolveReportUrl(user.value))
 const childInfo = computed(() => buildChildInfo(user.value, isPotentialCustomer.value))
 const guardianInfo = computed(() => buildGuardianInfo(user.value))
 
-const goSalesList = () => {
-  void router.push('/sales')
+const goBackToOrigin = () => {
+  void router.push(backRoutePath.value)
 }
 
 const openReport = () => {
@@ -200,13 +215,16 @@ watch(
 
 <template>
   <div class="app-shell user-detail-shell">
-    <AppSidebar active-label="영업현황" />
+    <AppSidebar :active-label="activeSidebarLabel" />
 
     <main class="app-main user-detail-page">
       <AppHeader title="고객 상세" />
 
       <div class="detail-toolbar">
-        <button class="back-button" type="button" @click="goSalesList">← 영업현황</button>
+        <button class="back-button" type="button" @click="goBackToOrigin">
+          {{ backButtonLabel }}
+        </button>
+
         <button class="report-button" type="button" :disabled="!reportUrl" @click="openReport">
           생활주기 성장 리포트 보기
         </button>
@@ -215,7 +233,10 @@ watch(
       <section v-if="isLoading" class="detail-state card">고객 정보를 불러오는 중입니다.</section>
       <section v-else-if="errorMessage" class="detail-state detail-state--error card">
         <strong>{{ errorMessage }}</strong>
-        <button class="button button-secondary" type="button" @click="goSalesList">목록으로 돌아가기</button>
+
+        <button class="button button-secondary" type="button" @click="goBackToOrigin">
+          목록으로 돌아가기
+        </button>
       </section>
 
       <div v-else-if="user" class="detail-content">

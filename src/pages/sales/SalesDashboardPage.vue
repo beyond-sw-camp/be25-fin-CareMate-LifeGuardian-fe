@@ -253,7 +253,6 @@ onMounted(() => {
 
     <main class="app-main page-placeholder">
       <AppHeader title="영업사원 대시보드" />
-
       <p
         v-if="noticeMessage"
         class="dashboard-message"
@@ -261,28 +260,23 @@ onMounted(() => {
       >
         {{ noticeMessage }}
       </p>
-
       <p
         v-if="errorMessage"
         class="dashboard-state dashboard-state--error"
       >
         {{ errorMessage }}
       </p>
-
       <p
         v-else-if="isLoading"
         class="dashboard-state"
       >
         불러오는 중...
       </p>
-
       <template v-else>
         <section class="dashboard-top">
           <DashboardSummaryCards :summary="summary" />
-
           <DashboardAchievementCard :achievement="achievement" />
         </section>
-
         <section class="card dashboard-contact">
           <div class="dashboard-contact__header">
             <h3>
@@ -290,7 +284,6 @@ onMounted(() => {
               <span>총 {{ contactCustomers.length }}명</span>
             </h3>
           </div>
-
           <DashboardContactCustomerTable
             v-model:selected-customer-ids="selectedCustomerIds"
             :customers="displayedContactCustomers"
@@ -301,7 +294,6 @@ onMounted(() => {
             @send-bulk-web-form="handleSendBulkWebForms"
             @send-bulk-report="handleSendBulkReports"
           />
-
           <div class="dashboard-contact__footer">
             <SalesPagination
               :current-page="contactCurrentPage"
@@ -317,8 +309,9 @@ onMounted(() => {
 
 <style scoped>
 .page-placeholder {
+  width: 100%;
   padding: 24px 28px;
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 .dashboard-message {
@@ -364,19 +357,19 @@ onMounted(() => {
 
 .dashboard-top {
   display: grid;
-  grid-template-columns: 1fr 360px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
   gap: 24px;
   align-items: start;
 }
 
 .dashboard-contact {
   display: flex;
+  width: 100%;
   flex-direction: column;
   margin-top: 24px;
   border: 1px solid #e3e8f0;
   box-shadow: none;
   padding: 14px 16px 18px;
-
   min-height: 280px;
 }
 
@@ -405,7 +398,7 @@ onMounted(() => {
   padding-top: 16px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
   .dashboard-top {
     grid-template-columns: 1fr;
   }
