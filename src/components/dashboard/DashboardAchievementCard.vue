@@ -33,7 +33,7 @@ const chartData = computed(() => {
       {
         data: hasChartValue ? [completed, remaining] : [0, 1],
         backgroundColor: hasChartValue
-          ? ['#f25ca2', '#eceef3']
+          ? ['#886adc', '#eceef3']
           : ['#eceef3', '#eceef3'],
         borderWidth: 0,
       },

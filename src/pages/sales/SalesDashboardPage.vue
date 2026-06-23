@@ -346,14 +346,6 @@ onMounted(() => {
   color: #d85a65;
 }
 
-/*
-.dashboard-top {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
-  gap: 24px;
-  align-items: start;
-}
-  */
 
 .dashboard-top {
   display: grid;
