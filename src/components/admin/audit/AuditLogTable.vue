@@ -174,7 +174,6 @@ const handleNextPage = () => {
   font-size: 15px;
   font-weight: 900;
   color: var(--color-text);
-  flex: 1;
 }
 
 .audit-filters {
