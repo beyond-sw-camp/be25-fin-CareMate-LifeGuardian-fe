@@ -92,6 +92,16 @@ const badgeClass = (badgeColor?: string) => {
   return 'contact-table__badge--muted'
 }
 
+const contactReasonText = (customer: ContactCustomer) => {
+  if (!customer.contactReason) return ''
+
+  return customer.contactReason
+    .split('|')
+    .map((reason) => reason.trim())
+    .filter(Boolean)
+    .join(' · ')
+}
+
 const isWebFormSending = (customer: ContactCustomer) =>
   props.sendingWebFormIds?.includes(customer.potentialCustomerId) ?? false
 
@@ -195,19 +205,28 @@ const reportButtonLabel = (customer: ContactCustomer) => {
             </td>
 
             <td>
-              <RouterLink
-                class="contact-table__customer-name"
-                :to="{
-                  name: 'user-detail',
-                  params: { customerId: customer.potentialCustomerId },
-                  query: { 
-                    conversionStatusCode: '01',
-                    from: 'dashboard',
-                  },
-                }"
-              >
-                {{ customer.customerName }}
-              </RouterLink>
+              <div class="contact-table__customer-name-wrap">
+                <RouterLink
+                  class="contact-table__customer-name"
+                  :to="{
+                    name: 'user-detail',
+                    params: { customerId: customer.potentialCustomerId },
+                    query: { 
+                      conversionStatusCode: '01',
+                      from: 'dashboard',
+                    },
+                  }"
+                >
+                  {{ customer.customerName }}
+                </RouterLink>
+
+                <span
+                  v-if="contactReasonText(customer)"
+                  class="contact-table__reason-tooltip"
+                >
+                    {{ contactReasonText(customer) }}
+                </span>
+              </div>
             </td>
 
             <td>{{ genderLabel(customer.gender) }}</td>
@@ -374,6 +393,13 @@ const reportButtonLabel = (customer: ContactCustomer) => {
   background: #f1f3f7;
 }
 
+.contact-table__customer-name-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .contact-table__customer-name {
   color: inherit;
   font-weight: 700;
@@ -382,6 +408,46 @@ const reportButtonLabel = (customer: ContactCustomer) => {
 .contact-table__customer-name:hover {
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+.contact-table__reason-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  z-index: 40;
+  visibility: hidden;
+  opacity: 0;
+  max-width: 260px;
+  border-radius: 6px;
+  background: #263142;
+  color: #ffffff;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms ease;
+  pointer-events: none;
+}
+
+.contact-table__reason-tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 4px solid transparent;
+  border-top-color: #263142;
+  content: '';
+  transform: translateX(-50%);
+}
+
+.contact-table__customer-name-wrap:hover .contact-table__reason-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .contact-table__age-label {
