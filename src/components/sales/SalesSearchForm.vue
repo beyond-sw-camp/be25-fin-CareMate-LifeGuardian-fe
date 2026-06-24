@@ -20,7 +20,9 @@ const initialForm = () => ({
 type SalesSearchFormState = ReturnType<typeof initialForm>
 type SalesSearchFormFilters = Partial<SalesSearchFormState>
 
+// 화면 입력값은 문자열/배열 중심으로 관리하고, submit 시 API 검색 조건으로 변환
 const form = reactive(initialForm())
+// 코드 값으로 내려가는 필터를 사용자가 읽을 수 있는 칩 문구로 바꾸기 위한 라벨 맵
 const consultStatusLabels: Record<string, string> = {
   '01': '미상담',
   '02': '상담중',
@@ -32,6 +34,7 @@ const contractStatusLabels: Record<string, string> = {
   '04': '청약완료',
   '06': '수납완료',
 }
+// 자주 쓰는 영업 조건을 한 번에 적용하는 프리셋 목록
 const quickFilters: { label: string; description: string; filters: SalesSearchFormFilters }[] = [
   {
     label: '첫 연락 대상',
@@ -64,6 +67,7 @@ const quickFilters: { label: string; description: string; filters: SalesSearchFo
     filters: { customerStageCode: '02', contractStatusCodes: ['06'], hasReport: true },
   },
 ]
+// 현재 적용된 필터를 칩 목록으로 만들고, 각 칩은 자기 필터를 제거하는 함수 가짐
 const appliedFilterChips = computed(() => {
   const chips: { key: string; label: string; remove: () => void }[] = []
 
@@ -150,7 +154,7 @@ const appliedFilterChips = computed(() => {
   return chips
 })
 
-// 빈 입력값은 쿼리 파라미터에서 제외해 백엔드 기본 조건을 사용한다.
+// 빈 입력값은 쿼리 파라미터에서 제외해 백엔드 기본 조건을 사용
 const submit = async () => {
   await nextTick()
 
@@ -166,17 +170,18 @@ const submit = async () => {
   })
 }
 
-// 폼과 부모 컴포넌트의 검색 조건을 함께 초기화한다.
 const reset = () => {
   Object.assign(form, initialForm())
   submit()
 }
 
+// 프리셋 적용 시 기존 입력값은 지우고 해당 프리셋 조건만 남김
 const applyQuickFilter = (filters: SalesSearchFormFilters) => {
   Object.assign(form, initialForm(), filters)
   submit()
 }
 
+// 칩 삭제 후 즉시 검색을 다시 실행해 화면과 필터 상태를 맞춤
 const removeFilter = (remove: () => void) => {
   remove()
   submit()

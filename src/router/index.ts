@@ -12,6 +12,7 @@ import AdminMembersPage from '../pages/admin/AdminMembersPage.vue'
 import LoginPage from '../pages/login/LoginPage.vue'
 import UserDetailPage from '../pages/userDetail/UserDetailPage.vue'
 import PotentialPage from '../pages/sales/PotentialPage.vue'
+import SendHistoryPage from '../pages/sales/SendHistoryPage.vue'
 import SalesDashboardPage from '../pages/sales/SalesDashboardPage.vue'
 import SalesPage from '../pages/sales/SalesPage.vue'
 import AdminAuditAndEsgPage from "@/pages/admin/AdminAuditAndEsgPage.vue";
@@ -71,6 +72,14 @@ const router = createRouter({
       path: '/potential',
       name: 'potential',
       component: PotentialPage,
+      meta: {
+        allowedRoles: [SALES_ROLE],
+      },
+    },
+    {
+      path: '/sales/send-history',
+      name: 'send-history',
+      component: SendHistoryPage,
       meta: {
         allowedRoles: [SALES_ROLE],
       },

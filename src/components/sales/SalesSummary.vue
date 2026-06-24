@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SalesSummary } from '@/api/sales'
 
+// 영업현황 상단 KPI 카드에 필요한 월 실적 요약 데이터입니다.
 defineProps<{
   summary: SalesSummary | null
 }>()

@@ -16,8 +16,10 @@ import {
   type SalesCustomer,
   type SalesSearchFilters,
   type SalesSummary as SalesSummaryData,
+  type WebformSendResult,
 } from '@/api/sales'
 
+// 검색 결과, 선택 상태, 전송 진행 상태를 한 페이지에서 조율하는 영업현황 컨테이너 상태입니다.
 const selectedReportIds = ref<number[]>([])
 const isCriteriaModalOpen = ref(false)
 const summary = ref<SalesSummaryData | null>(null)
@@ -37,6 +39,7 @@ let reportMessageTimer: ReturnType<typeof setTimeout> | undefined
 
 const SALES_PAGE_SIZE = 10
 
+// 현재는 서버 페이지네이션 결과를 그대로 노출하지만, 템플릿 의존성을 줄이기 위해 computed로 감쌉니다.
 const displayedCustomers = computed(() => customers.value)
 const displayedTotalCount = computed(() => totalCount.value)
 
@@ -44,6 +47,19 @@ const displayedTotalCount = computed(() => totalCount.value)
 const currentYearMonth = () => {
   const now = new Date()
   return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+const createEmptySummary = (targetYearMonth: string): SalesSummaryData => ({
+  year: Number(targetYearMonth.slice(0, 4)),
+  month: Number(targetYearMonth.slice(4, 6)),
+  targetCount: 0,
+  contractCount: 0,
+  achievementRate: 0,
+})
+
+// KPI가 아직 집계되지 않은 달은 404로 내려올 수 있어 빈 요약으로 대체합니다.
+const isNotFoundError = (error: unknown) => {
+  return axios.isAxiosError(error) && error.response?.status === 404
 }
 
 // Axios 응답에 서버 메시지가 있으면 화면 오류 문구로 우선 사용
@@ -57,9 +73,16 @@ const getErrorMessage = (error: unknown, fallbackMessage = '영업현황을 불�
 
 // KPI 조회 실패가 목록 조회를 막지 않도록 별도로 처리
 const loadSummary = async () => {
+  const targetYearMonth = currentYearMonth()
+
   try {
-    summary.value = await getSalesSummary(currentYearMonth())
-  } catch {
+    summary.value = await getSalesSummary(targetYearMonth)
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      summary.value = createEmptySummary(targetYearMonth)
+      return
+    }
+
     summary.value = null
   }
 }
@@ -106,6 +129,19 @@ const showReportMessage = (message: string, type: 'success' | 'error') => {
   }, 7_000)
 }
 
+// 웹폼 발송 API 응답을 현재 목록의 고객 상태에 반영합니다.
+const applyWebformSendResult = (result: WebformSendResult) => {
+  const targetCustomer = customers.value.find(
+    (customer) => customer.customerId === result.customerId,
+  )
+
+  if (!targetCustomer) return
+
+  targetCustomer.webformStatusCode = result.webformStatusCode
+  targetCustomer.webformStatusName = result.webformStatusName
+}
+
+// 개별 리포트 발송/재발송 처리입니다. 중복 클릭 방지를 위해 고객 ID를 진행 목록에 넣습니다.
 const handleSendReport = async (customer: SalesCustomer) => {
   if (sendingCustomerIds.value.includes(customer.customerId)) return
 
@@ -137,6 +173,7 @@ const handleSendReport = async (customer: SalesCustomer) => {
   }
 }
 
+// 선택된 리포트가 있으면 선택 건만, 없으면 현재 검색 조건의 발송 가능 건을 일괄 발송합니다.
 const handleBulkSend = async () => {
   if (isReportBulkSending.value) return
 
@@ -171,6 +208,7 @@ const handleBulkSend = async () => {
   }
 }
 
+// 서버 기준으로 웹폼 발송 대상 전체를 일괄 발송합니다.
 const handleWebformBulkSend = async () => {
   if (isWebformBulkSending.value) return
   if (!window.confirm('웹폼을 일괄 발송하시겠습니까?')) return
@@ -179,12 +217,14 @@ const handleWebformBulkSend = async () => {
   reportMessage.value = ''
 
   try {
-    const result = await sendCustomerWebformsInBulk()
+    const results = await sendCustomerWebformsInBulk()
+
+    results.forEach(applyWebformSendResult)
+
     showReportMessage(
-      `웹폼 일괄 발송 완료: 요청 ${result.requestedCount}건, 성공 ${result.successCount}건, 실패 ${result.failedCount}건`,
-      result.failedCount > 0 ? 'error' : 'success',
+      `웹폼 일괄 발송 완료: 성공 ${results.length}건`,
+      'success',
     )
-    await loadSalesList()
   } catch (error) {
     showReportMessage(getErrorMessage(error, '웹폼 일괄 발송에 실패했습니다.'), 'error')
   } finally {
@@ -238,12 +278,12 @@ onBeforeUnmount(() => {
         <p v-if="errorMessage" class="sales-list__message sales-list__message--error">{{ errorMessage }}</p>
         <p v-else-if="isLoading" class="sales-list__message">불러오는 중...</p>
         <SalesTable
-        v-else
-        v-model:selected-report-ids="selectedReportIds"
-        :customers="displayedCustomers"
-        :sending-customer-ids="sendingCustomerIds"
-        @send-report="handleSendReport"
-      />
+          v-else
+          v-model:selected-report-ids="selectedReportIds"
+          :customers="displayedCustomers"
+          :sending-customer-ids="sendingCustomerIds"
+          :send-report="handleSendReport"
+        />
         <div class="sales-list__footer">
           <div class="sales-list__bulk-actions">
             <button
