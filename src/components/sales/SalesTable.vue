@@ -6,27 +6,26 @@ import {
   resolveSalesCustomerStageName,
   type SalesCustomer,
 } from '@/api/sales'
+import SalesWebformSendButton from '@/components/sales/SalesWebformSendButton.vue'
 
 const props = defineProps<{
   customers: SalesCustomer[]
   sendingCustomerIds?: number[]
-  sendingWebformCustomerIds?: number[]
   selectedReportIds?: number[]
+  sendReport?: (customer: SalesCustomer) => void
 }>()
 
 const emit = defineEmits<{
   'update:selectedReportIds': [reportIds: number[]]
-  sendWebform: [customer: SalesCustomer]
-  sendReport: [customer: SalesCustomer]
 }>()
 
 const SENDABLE_REPORT_STATUS_CODES = new Set(['01', '02', '03'])
-const SENT_WEBFORM_STATUS_CODES = new Set(['02'])
 const selectAllCheckbox = ref<HTMLInputElement | null>(null)
 
+// 부모 페이지에서 내려준 진행 중 ID 목록으로 행 단위 로딩 상태를 판단합니다.
 const isSending = (customerId: number) => props.sendingCustomerIds?.includes(customerId) ?? false
-const isWebformSending = (customerId: number) =>
-  props.sendingWebformCustomerIds?.includes(customerId) ?? false
+
+// 리포트 ID가 있고 발송 버튼 노출 조건을 만족하는 고객만 체크박스 선택 대상입니다.
 const isSelectableReport = (customer: SalesCustomer) =>
   typeof customer.reportId === 'number' && customer.reportId > 0 && canShowSendButton(customer)
 const selectableReportIds = computed(() =>
@@ -34,6 +33,8 @@ const selectableReportIds = computed(() =>
     .filter(isSelectableReport)
     .map((customer) => customer.reportId!),
 )
+
+// 백엔드 상태 코드와 canSendReport 플래그를 함께 보고 발송/재발송 버튼 노출 여부를 결정합니다.
 const canShowSendButton = (customer: SalesCustomer) =>
   customer.hasReport &&
   Boolean(customer.reportStatusCode) &&
@@ -43,22 +44,12 @@ const sendButtonLabel = (customer: SalesCustomer) => {
   if (isSending(customer.customerId)) return '발송 중'
   return customer.reportStatusCode === '02' ? '재발송' : '발송'
 }
-const isWebformSent = (customer: SalesCustomer) => {
-  const statusCode = customer.webFormStatusCode ?? customer.webformStatusCode
-  const statusName = customer.webFormStatusName ?? customer.webformStatusName
 
-  return (
-    (statusCode && SENT_WEBFORM_STATUS_CODES.has(statusCode)) ||
-    statusName === '발송완료' ||
-    statusName === '발송 완료'
-  )
-}
 const webformStatusName = (customer: SalesCustomer) =>
-  customer.webFormStatusName ?? customer.webformStatusName ?? '-'
-const webformButtonLabel = (customer: SalesCustomer) => {
-  if (isWebformSending(customer.customerId)) return '발송 중'
-  if (isWebformSent(customer)) return '재발송'
-  return webformStatusName(customer) === '-' ? '발송' : webformStatusName(customer)
+  customer.webformStatusName ?? '-'
+
+const handleReportClick = (customer: SalesCustomer) => {
+  props.sendReport?.(customer)
 }
 
 const isAllSelected = computed(
@@ -70,10 +61,12 @@ const isPartiallySelected = computed(
   () => Boolean(props.selectedReportIds?.length) && !isAllSelected.value,
 )
 
+// 헤더 체크박스는 현재 화면에서 선택 가능한 리포트만 대상으로 전체 선택을 토글합니다.
 const toggleAllCustomers = () => {
   emit('update:selectedReportIds', isAllSelected.value ? [] : selectableReportIds.value)
 }
 
+// 개별 행 체크박스 선택 상태를 부모의 selectedReportIds v-model로 되돌립니다.
 const toggleReport = (customer: SalesCustomer) => {
   if (!isSelectableReport(customer)) return
 
@@ -86,6 +79,7 @@ const toggleReport = (customer: SalesCustomer) => {
   emit('update:selectedReportIds', nextIds)
 }
 
+// 페이지/검색 조건 변경으로 화면에서 사라진 리포트는 선택 목록에서도 제거합니다.
 watch(
   () => props.customers,
   (customers) => {
@@ -103,6 +97,7 @@ watch(
   },
 )
 
+// HTML 체크박스의 indeterminate 상태는 DOM 프로퍼티라 watch로 직접 동기화합니다.
 watch(
   isPartiallySelected,
   (isIndeterminate) => {
@@ -113,12 +108,14 @@ watch(
   { immediate: true },
 )
 
+// 고객 성별은 API/목 데이터 표기가 섞일 수 있어 대표 표기로 정규화합니다.
 const genderLabel = (gender: string) => {
   if (gender === 'MALE' || gender === 'Male' || gender === 'M' || gender === '남') return '남'
   if (gender === 'FEMALE' || gender === 'Female' || gender === 'F' || gender === '여') return '여'
   return gender
 }
 
+// 계약 상태 코드를 배지 색상 클래스에 매핑합니다.
 const contractClass = (statusCode?: string) => {
   const classMap: Record<string, string> = {
     '01': 'warning',
@@ -131,6 +128,19 @@ const contractClass = (statusCode?: string) => {
   return statusCode ? classMap[statusCode] ?? 'muted' : 'danger-soft'
 }
 
+const contractStatusLabel = (customer: SalesCustomer) => {
+  const labelMap: Record<string, string> = {
+    '01': '설계중',
+    '02': '설계완료',
+    '03': '청약중',
+    '04': '청약완료',
+    '06': '수납완료',
+  }
+
+  return customer.contractStatusName || (customer.contractStatusCode ? labelMap[customer.contractStatusCode] : undefined) || '-'
+}
+
+// 보험 나이 변경 D-Day는 서버 값이 있으면 우선 사용하고, 없으면 날짜로 계산합니다.
 const calculateAgeShiftDDay = (customer: SalesCustomer) => {
   if (typeof customer.ageIncreaseDDay === 'number') return customer.ageIncreaseDDay
   if (!customer.insuranceAgeShiftDate) return undefined
@@ -145,17 +155,19 @@ const calculateAgeShiftDDay = (customer: SalesCustomer) => {
   return Math.round((targetTime - todayTime) / 86_400_000)
 }
 
+// 나이 변경이 30일 이내인 고객 행은 우선 관리 대상으로 강조합니다.
 const ageShiftRowClass = (customer: SalesCustomer) => {
   const dDay = calculateAgeShiftDDay(customer)
   if (dDay === undefined || dDay < 0 || dDay > 30) return undefined
   return dDay <= 7 ? 'sales-table__row--age-shift-near' : 'sales-table__row--age-shift-warning'
 }
 
+// 행 안에 표시할 보험 나이 변경 안내 문구를 만듭니다.
 const ageShiftGuide = (customer: SalesCustomer) => {
   const dDay = calculateAgeShiftDDay(customer)
   if (dDay === undefined || dDay < 0 || dDay > 30) return undefined
-  if (dDay === 0) return '상령일 도래 D-Day'
-  return dDay <= 7 ? `상령일 임박 D-${dDay}` : `상령일 도래 예정 D-${dDay}`
+  if (dDay === 0) return '보험 나이 변경 D-Day'
+  return dDay <= 7 ? `보험 나이 변경 임박 D-${dDay}` : `보험 나이 변경 예정 D-${dDay}`
 }
 
 const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
@@ -243,7 +255,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <td>{{ resolveSalesCustomerStageName(customer) }}</td>
           <td>
             <span class="contract-badge" :class="`contract-badge--${contractClass(customer.contractStatusCode)}`">
-              {{ customer.contractStatusName }}
+              {{ contractStatusLabel(customer) }}
             </span>
           </td>
           <td>{{ customer.insuranceName }}</td>
@@ -253,15 +265,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <td class="report-status">{{ customer.reportStatusName }}</td>
           <td>
             <div class="sales-table__actions">
-              <button
-                class="report-button report-button--webform"
-                :class="{ 'report-button--resend': isWebformSent(customer) }"
-                type="button"
-                :disabled="isWebformSending(customer.customerId)"
-                @click="emit('sendWebform', customer)"
-              >
-                {{ webformButtonLabel(customer) }}
-              </button>
+              <SalesWebformSendButton :customer="customer" />
             </div>
           </td>
           <td>
@@ -274,7 +278,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
                 }"
                 type="button"
                 :disabled="!canShowSendButton(customer) || isSending(customer.customerId)"
-                @click="emit('sendReport', customer)"
+                @click="handleReportClick(customer)"
               >
                 {{ canShowSendButton(customer) ? sendButtonLabel(customer) : '발송' }}
               </button>

@@ -12,7 +12,6 @@ import {
   getSalesSummary,
   sendCustomerReport,
   sendCustomerReportsInBulk,
-  sendCustomerWebform,
   sendCustomerWebformsInBulk,
   type SalesCustomer,
   type SalesSearchFilters,
@@ -20,6 +19,7 @@ import {
   type WebformSendResult,
 } from '@/api/sales'
 
+// 검색 결과, 선택 상태, 전송 진행 상태를 한 페이지에서 조율하는 영업현황 컨테이너 상태입니다.
 const selectedReportIds = ref<number[]>([])
 const isCriteriaModalOpen = ref(false)
 const summary = ref<SalesSummaryData | null>(null)
@@ -32,7 +32,6 @@ const errorMessage = ref('')
 const reportMessage = ref('')
 const reportMessageType = ref<'success' | 'error'>('success')
 const sendingCustomerIds = ref<number[]>([])
-const sendingWebformCustomerIds = ref<number[]>([])
 const isReportBulkSending = ref(false)
 const isWebformBulkSending = ref(false)
 const filters = ref<SalesSearchFilters>({})
@@ -40,6 +39,7 @@ let reportMessageTimer: ReturnType<typeof setTimeout> | undefined
 
 const SALES_PAGE_SIZE = 10
 
+// 현재는 서버 페이지네이션 결과를 그대로 노출하지만, 템플릿 의존성을 줄이기 위해 computed로 감쌉니다.
 const displayedCustomers = computed(() => customers.value)
 const displayedTotalCount = computed(() => totalCount.value)
 
@@ -57,6 +57,7 @@ const createEmptySummary = (targetYearMonth: string): SalesSummaryData => ({
   achievementRate: 0,
 })
 
+// KPI가 아직 집계되지 않은 달은 404로 내려올 수 있어 빈 요약으로 대체합니다.
 const isNotFoundError = (error: unknown) => {
   return axios.isAxiosError(error) && error.response?.status === 404
 }
@@ -128,21 +129,19 @@ const showReportMessage = (message: string, type: 'success' | 'error') => {
   }, 7_000)
 }
 
+// 웹폼 발송 API 응답을 현재 목록의 고객 상태에 반영합니다.
 const applyWebformSendResult = (result: WebformSendResult) => {
   const targetCustomer = customers.value.find(
-    (customer) =>
-      customer.customerId === result.customerId &&
-      customer.customerStageCode === result.conversionStatusCode,
+    (customer) => customer.customerId === result.customerId,
   )
 
   if (!targetCustomer) return
 
-  targetCustomer.webFormStatusCode = result.webformStatusCode
-  targetCustomer.webFormStatusName = result.webformStatusName
   targetCustomer.webformStatusCode = result.webformStatusCode
   targetCustomer.webformStatusName = result.webformStatusName
 }
 
+// 개별 리포트 발송/재발송 처리입니다. 중복 클릭 방지를 위해 고객 ID를 진행 목록에 넣습니다.
 const handleSendReport = async (customer: SalesCustomer) => {
   if (sendingCustomerIds.value.includes(customer.customerId)) return
 
@@ -174,6 +173,7 @@ const handleSendReport = async (customer: SalesCustomer) => {
   }
 }
 
+// 선택된 리포트가 있으면 선택 건만, 없으면 현재 검색 조건의 발송 가능 건을 일괄 발송합니다.
 const handleBulkSend = async () => {
   if (isReportBulkSending.value) return
 
@@ -208,27 +208,7 @@ const handleBulkSend = async () => {
   }
 }
 
-const handleSendWebform = async (customer: SalesCustomer) => {
-  if (sendingWebformCustomerIds.value.includes(customer.customerId)) return
-
-  sendingWebformCustomerIds.value = [...sendingWebformCustomerIds.value, customer.customerId]
-  reportMessage.value = ''
-
-  try {
-    const result = await sendCustomerWebform(customer.customerId, customer.customerStageCode)
-
-    applyWebformSendResult(result)
-    showReportMessage(`${customer.customerName} 고객에게 웹폼을 발송했습니다.`, 'success')
-    await loadSalesList()
-  } catch (error) {
-    showReportMessage(getErrorMessage(error, '웹폼을 발송하지 못했습니다.'), 'error')
-  } finally {
-    sendingWebformCustomerIds.value = sendingWebformCustomerIds.value.filter(
-      (customerId) => customerId !== customer.customerId,
-    )
-  }
-}
-
+// 서버 기준으로 웹폼 발송 대상 전체를 일괄 발송합니다.
 const handleWebformBulkSend = async () => {
   if (isWebformBulkSending.value) return
   if (!window.confirm('웹폼을 일괄 발송하시겠습니까?')) return
@@ -245,7 +225,6 @@ const handleWebformBulkSend = async () => {
       `웹폼 일괄 발송 완료: 성공 ${results.length}건`,
       'success',
     )
-    await loadSalesList()
   } catch (error) {
     showReportMessage(getErrorMessage(error, '웹폼 일괄 발송에 실패했습니다.'), 'error')
   } finally {
@@ -299,14 +278,12 @@ onBeforeUnmount(() => {
         <p v-if="errorMessage" class="sales-list__message sales-list__message--error">{{ errorMessage }}</p>
         <p v-else-if="isLoading" class="sales-list__message">불러오는 중...</p>
         <SalesTable
-        v-else
-        v-model:selected-report-ids="selectedReportIds"
-        :customers="displayedCustomers"
-        :sending-customer-ids="sendingCustomerIds"
-        :sending-webform-customer-ids="sendingWebformCustomerIds"
-        @send-webform="handleSendWebform"
-        @send-report="handleSendReport"
-      />
+          v-else
+          v-model:selected-report-ids="selectedReportIds"
+          :customers="displayedCustomers"
+          :sending-customer-ids="sendingCustomerIds"
+          :send-report="handleSendReport"
+        />
         <div class="sales-list__footer">
           <div class="sales-list__bulk-actions">
             <button

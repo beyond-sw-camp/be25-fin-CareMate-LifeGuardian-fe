@@ -36,7 +36,7 @@ const registerForm = ref({
   rankCode: '01',
   phone: '',
   email: '',
-  joinedAt: new Date().toISOString().split('T')[0],
+  joinedAt: new Date().toISOString().slice(0, 10),
   roleCode: '02'
 })
 const isRegistering = ref(false)
@@ -85,8 +85,8 @@ const getUserMockDetails = (user: SalesUserSummary) => {
   return {
     birthDate: `${birthYear}-${birthMonth}-${birthDay}`,
     branchName: branchMap[1], // 기본 지점 1 (강남지점)
-    positionName: rankMap[rankCode] || 'FC',
-    rankCode: rankCode,
+    positionName: rankMap[rankCode ?? '01'] || 'FC',
+    rankCode: rankCode ?? '01',
     phone: `010-${phoneMid}-${phoneEnd}`,
     email: `${user.employeeId}@lifeguardian.test`,
     joinedAt: `${birthYear + 25}-03-02`
@@ -147,7 +147,7 @@ const openAddForm = () => {
     rankCode: '01',
     phone: '',
     email: '',
-    joinedAt: new Date().toISOString().split('T')[0],
+    joinedAt: new Date().toISOString().slice(0, 10),
     roleCode: '02'
   }
 }

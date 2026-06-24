@@ -52,7 +52,7 @@ const activeLifeStageIndex = computed(() => {
       <span class="panel-label">생애주기 정보</span>
       <strong>{{ lifeStageLabel }}</strong>
       <p class="lifecycle-date">
-        <span>보험나이 변경 기준일</span>
+        <span>보험나이 변경 기준일 {{ fallback(user.insuranceAgeShiftDate) }}</span>
         <b>{{ ageShiftDDay }}</b>
       </p>
 

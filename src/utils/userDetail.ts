@@ -39,6 +39,13 @@ export const resolveLifeStageLabel = (user: UserDetail | null) => {
 }
 
 export const resolveAgeShiftDDay = (user: UserDetail | null) => {
+  if (user?.ageChangeLabel) return user.ageChangeLabel
+  const days = user?.ageIncreaseDDay
+  if (typeof days === 'number') {
+    if (days === 0) return 'D-Day'
+    return days > 0 ? `D-${days}` : `D+${Math.abs(days)}`
+  }
+
   const date = user?.insuranceAgeShiftDate
   if (!date) return null
 
@@ -47,10 +54,10 @@ export const resolveAgeShiftDDay = (user: UserDetail | null) => {
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const days = Math.ceil((target.getTime() - today.getTime()) / 86_400_000)
+  const calculatedDays = Math.ceil((target.getTime() - today.getTime()) / 86_400_000)
 
-  if (days === 0) return 'D-Day'
-  return days > 0 ? `D-${days}` : `D+${Math.abs(days)}`
+  if (calculatedDays === 0) return 'D-Day'
+  return calculatedDays > 0 ? `D-${calculatedDays}` : `D+${Math.abs(calculatedDays)}`
 }
 
 export const buildChildInfo = (
