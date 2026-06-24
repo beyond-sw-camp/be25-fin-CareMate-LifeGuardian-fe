@@ -167,6 +167,7 @@ const typeLabel = (type: SendType) => (type === 'report' ? '리포트' : '웹폼
 <style scoped>
 .send-history-page__main {
   padding: 18px 28px 40px 24px;
+  overflow-x: hidden;
 }
 
 .send-history-toolbar {
@@ -256,13 +257,17 @@ const typeLabel = (type: SendType) => (type === 'report' ? '리포트' : '웹폼
 }
 
 .send-history-table {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   border: 1px solid #e1e7f0;
   border-radius: 6px;
 }
 
 .send-history-table table {
+  width: 100%;
+  min-width: 760px;
   table-layout: fixed;
+  borderj-collapse: collapse;
 }
 
 .send-history-table th,
