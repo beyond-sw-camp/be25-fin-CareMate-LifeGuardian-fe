@@ -48,7 +48,7 @@ const countLabel = (count?: number) => `${count ?? 0}명`
         <strong>{{ countLabel(summary?.paymentCompletedCount) }}</strong>
       </article>
 
-      <article class="summary-status-card">
+      <article class="summary-status-card summary-status-card--completed">
         <span>계약 완료</span>
         <strong>{{ countLabel(summary?.contractCompletedCount) }}</strong>
       </article>
@@ -64,9 +64,8 @@ const countLabel = (count?: number) => `${count ?? 0}명`
 
 .dashboard-summary__top {
   display: grid;
-  grid-template-columns: repeat(2, 280px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-  justify-content: start;
 }
 
 .summary-small-card {
@@ -94,10 +93,8 @@ const countLabel = (count?: number) => `${count ?? 0}명`
 
 .dashboard-summary__grid {
   display: grid;
-  grid-template-columns: repeat(3, 280px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 15px 16px;
-  justify-content: start;
-
   margin-top: 15px;
 }
 
@@ -125,9 +122,45 @@ const countLabel = (count?: number) => `${count ?? 0}명`
   font-weight: 900;
 }
 
-@media (max-width: 1100px) {
+.summary-status-card--completed {
+  position: relative;
+}
+
+.summary-status-card--completed {
+  position: relative;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.summary-status-card--completed::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  border-radius: 8px;
+  padding: 2px;
+
+  background: linear-gradient(
+    135deg,
+    #7c3cff,
+    #9b84ff,
+    #e7e2ff
+  );
+
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .dashboard-summary__top,
   .dashboard-summary__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 </style>

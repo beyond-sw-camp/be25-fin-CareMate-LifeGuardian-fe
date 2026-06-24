@@ -26,11 +26,15 @@ const chartData = computed(() => {
 
   const remaining = Math.max(target - completed, 0)
 
+  const hasChartValue = completed > 0 || remaining > 0
+
   return {
     datasets: [
       {
-        data: [completed, remaining],
-        backgroundColor: ['#f25ca2', '#eceef3'],
+        data: hasChartValue ? [completed, remaining] : [0, 1],
+        backgroundColor: hasChartValue
+          ? ['#886adc', '#eceef3']
+          : ['#eceef3', '#eceef3'],
         borderWidth: 0,
       },
     ],
@@ -109,7 +113,7 @@ const chartOptions = {
 .achievement-card {
   display: flex;
   height: 100%;
-  min-height: 300px;
+  min-height: 250px;
   flex-direction: column;
   border: 1px solid #e3e8f0;
   border-radius: 8px;
@@ -152,14 +156,14 @@ const chartOptions = {
 }
 
 .achievement-card__legend-dot--completed {
-  background: #f25ca2;
+  background: #886adc;
 }
 
 .achievement-card__chart {
   position: relative;
-  width: 180px;
-  height: 100px;
-  margin: 0 auto;
+  width: 170px;
+  height: 170px;
+  margin: 9px auto 0;
 }
 
 .achievement-card__center {
@@ -171,7 +175,7 @@ const chartOptions = {
   align-items: center;
   justify-content: center;
 
-  padding-top: 80px;
+  padding-top: 0px;
 }
 
 .achievement-card__center span {
@@ -182,7 +186,7 @@ const chartOptions = {
 
 .achievement-card__center strong {
   color: #172033;
-  font-size: 30px;
+  font-size: 25px;
   font-weight: 900;
 }
 

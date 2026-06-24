@@ -112,6 +112,15 @@ const isReportSent = (customer: ContactCustomer) => {
 
 const webFormButtonLabel = (customer: ContactCustomer) => {
   if (isWebFormSending(customer)) return '발송 중'
+
+  if (customer.webFormStatusName === '미발송') {
+    return '발송'
+  }
+
+  if (customer.webFormStatusName === '회수/만료') {
+    return '회수완료'
+  }
+
   return customer.webFormStatusName || '발송'
 }
 
@@ -185,8 +194,20 @@ const reportButtonLabel = (customer: ContactCustomer) => {
               />
             </td>
 
-            <td class="contact-table__customer-name">
-              {{ customer.customerName }}
+            <td>
+              <RouterLink
+                class="contact-table__customer-name"
+                :to="{
+                  name: 'user-detail',
+                  params: { customerId: customer.potentialCustomerId },
+                  query: { 
+                    conversionStatusCode: '01',
+                    from: 'dashboard',
+                  },
+                }"
+              >
+                {{ customer.customerName }}
+              </RouterLink>
             </td>
 
             <td>{{ genderLabel(customer.gender) }}</td>
@@ -211,7 +232,19 @@ const reportButtonLabel = (customer: ContactCustomer) => {
             </td>
 
             <td>
-              <span class="contact-table__status">
+              <span
+                class="contact-table__status"
+                :class="{
+                  'contact-table__status--waiting':
+                    customer.consultStatusName === '미상담',
+            
+                  'contact-table__status--progress':
+                    customer.consultStatusName === '상담중',
+            
+                  'contact-table__status--complete':
+                    customer.consultStatusName === '상담완료',
+                }"
+              >
                 {{ customer.consultStatusName }}
               </span>
             </td>
@@ -291,13 +324,15 @@ const reportButtonLabel = (customer: ContactCustomer) => {
 }
 
 .contact-table {
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
   border: 1px solid #e1e7f0;
   border-radius: 6px;
 }
 
 .contact-table table {
   width: 100%;
+  min-width:980px;
   table-layout: fixed;
   border-collapse: collapse;
 }
@@ -340,7 +375,13 @@ const reportButtonLabel = (customer: ContactCustomer) => {
 }
 
 .contact-table__customer-name {
+  color: inherit;
   font-weight: 700;
+}
+
+.contact-table__customer-name:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 .contact-table__age-label {
@@ -425,4 +466,20 @@ const reportButtonLabel = (customer: ContactCustomer) => {
   height: 80px;
   color: var(--color-text-muted);
 }
+
+.contact-table__status--waiting {
+  background: #fff4d7;
+  color: #8a6412;
+}
+
+.contact-table__status--progress {
+  background: #e3efff;
+  color: #285fba;
+}
+
+.contact-table__status--complete {
+  background: #ddf7e7;
+  color: #24723b;
+}
+
 </style>

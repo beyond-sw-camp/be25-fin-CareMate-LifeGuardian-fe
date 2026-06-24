@@ -148,13 +148,15 @@ const genderLabel = (gender: string) => {
 
 <style scoped>
 .potential-table {
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
   border: 1px solid #e1e7f0;
   border-radius: 6px;
 }
 
 .potential-table table {
   width: 100%;
+  min-width: 980px;
   table-layout: fixed;
   border-collapse: collapse;
 }
