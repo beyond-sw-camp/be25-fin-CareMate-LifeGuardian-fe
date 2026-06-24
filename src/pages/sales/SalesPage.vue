@@ -272,7 +272,7 @@ const handleWebformBulkSend = async () => {
 
 onMounted(() => {
   applyRouteFilters()
-  
+
   // 서로 독립적인 KPI와 목록 API를 동시에 호출
   void Promise.all([loadSummary(), loadSalesList(1)])
 })
@@ -300,7 +300,10 @@ onBeforeUnmount(() => {
       </AppHeader>
 
       <SalesSummary :summary="summary" />
-      <SalesSearchForm @search="handleSearch" />
+      <SalesSearchForm 
+        :filters="filters"
+        @search="handleSearch" 
+      />
 
       <section class="card sales-list">
         <div class="sales-list__header">

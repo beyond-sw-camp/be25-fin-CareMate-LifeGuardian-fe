@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive } from 'vue'
+import { computed, nextTick, reactive, watch } from 'vue'
 
 import type { SalesSearchFilters } from '@/api/sales'
+
+const props = defineProps<{
+  filters?: SalesSearchFilters
+}>()
 
 const emit = defineEmits<{
   search: [filters: SalesSearchFilters]
@@ -22,6 +26,26 @@ type SalesSearchFormFilters = Partial<SalesSearchFormState>
 
 // 화면 입력값은 문자열/배열 중심으로 관리하고, submit 시 API 검색 조건으로 변환
 const form = reactive(initialForm())
+
+watch(
+  () => props.filters,
+  (filters) => {
+    if (!filters) return
+
+    form.consultStatusCodes = filters.consultStatusCode
+      ? [...filters.consultStatusCode]
+      : []
+
+    form.contractStatusCodes = filters.contractStatusCode
+      ? [...filters.contractStatusCode]
+      : []
+  },
+  {
+    immediate: true,
+    deep: true,
+  },
+)
+
 // 코드 값으로 내려가는 필터를 사용자가 읽을 수 있는 칩 문구로 바꾸기 위한 라벨 맵
 const consultStatusLabels: Record<string, string> = {
   '01': '미상담',
