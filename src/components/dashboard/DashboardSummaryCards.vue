@@ -5,50 +5,90 @@ const props = defineProps<{
   summary: DashboardSummary | null
 }>()
 
+const emit = defineEmits<{
+  goSalesFilter: [
+    filter: {
+      consultStatusCode?: string[]
+      contractStatusCode?: string[]
+    },
+  ]
+}>()
+
 const countLabel = (count?: number) => `${count ?? 0}명`
+
+const moveSalesFilter = (filter: {
+  consultStatusCode?: string[]
+  contractStatusCode?: string[]
+}) => {
+  emit('goSalesFilter', filter)
+}
 </script>
 
 <template>
   <section class="dashboard-summary">
     <div class="dashboard-summary__top">
-      <article class="summary-small-card">
+      <article 
+        class="summary-small-card"
+        @click="moveSalesFilter({ consultStatusCode: ['01'] })"
+      >
         <span>잠재고객 미상담 고객</span>
         <strong>{{ countLabel(summary?.uncontactedCustomerCount) }}</strong>
       </article>
 
-      <article class="summary-small-card">
+      <article 
+        class="summary-small-card"
+        @click="moveSalesFilter({ consultStatusCode: ['02'] })"
+      >
         <span>잠재고객 상담 중 고객</span>
         <strong>{{ countLabel(summary?.consultingCustomerCount) }}</strong>
       </article>
     </div>
 
     <div class="dashboard-summary__grid">
-      <article class="summary-status-card">
+      <article 
+        class="summary-status-card"
+        @click="moveSalesFilter({ contractStatusCode: ['01'] })"
+      >
         <span>설계 중</span>
         <strong>{{ countLabel(summary?.designingContractCount) }}</strong>
       </article>
 
-      <article class="summary-status-card">
+      <article 
+        class="summary-status-card"
+        @click="moveSalesFilter({ contractStatusCode: ['02'] })"
+      >
         <span>설계 완료</span>
         <strong>{{ countLabel(summary?.designedContractCount) }}</strong>
       </article>
 
-      <article class="summary-status-card">
+      <article 
+        class="summary-status-card"
+        @click="moveSalesFilter({ contractStatusCode: ['03'] })"
+      >
         <span>청약 중</span>
         <strong>{{ countLabel(summary?.subscriptionInProgressCount) }}</strong>
       </article>
 
-      <article class="summary-status-card">
+      <article 
+        class="summary-status-card"
+        @click="moveSalesFilter({ contractStatusCode: ['04'] })"
+      >
         <span>청약 완료</span>
         <strong>{{ countLabel(summary?.subscriptionCompletedCount) }}</strong>
       </article>
 
-      <article class="summary-status-card">
+      <article 
+        class="summary-status-card"
+        @click="moveSalesFilter({ contractStatusCode: ['06'] })"
+      >
         <span>수납 완료</span>
         <strong>{{ countLabel(summary?.paymentCompletedCount) }}</strong>
       </article>
 
-      <article class="summary-status-card summary-status-card--completed">
+      <article 
+        class="summary-status-card summary-status-card--completed"
+        @click="moveSalesFilter({})"
+      >
         <span>계약 완료</span>
         <strong>{{ countLabel(summary?.contractCompletedCount) }}</strong>
       </article>
@@ -155,6 +195,22 @@ const countLabel = (count?: number) => `${count ?? 0}명`
   mask-composite: exclude;
 
   pointer-events: none;
+}
+
+.summary-small-card,
+.summary-status-card {
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.summary-small-card:hover,
+.summary-status-card:hover {
+  border-color: #cbd7ee;
+  box-shadow: 0 8px 18px rgb(15 23 42 / 8%);
+  transform: translateY(-2px);
 }
 
 @media (max-width: 760px) {

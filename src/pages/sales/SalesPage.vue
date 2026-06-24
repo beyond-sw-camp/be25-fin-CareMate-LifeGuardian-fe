@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import axios from 'axios'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import AppHeader from '../../components/common/Header.vue'
 import AppSidebar from '../../components/common/Sidebar.vue'
 import SalesPagination from '../../components/sales/SalesPagination.vue'
@@ -35,6 +36,7 @@ const sendingCustomerIds = ref<number[]>([])
 const isReportBulkSending = ref(false)
 const isWebformBulkSending = ref(false)
 const filters = ref<SalesSearchFilters>({})
+const route = useRoute()
 let reportMessageTimer: ReturnType<typeof setTimeout> | undefined
 
 const SALES_PAGE_SIZE = 10
@@ -116,6 +118,42 @@ const loadSalesList = async (page = currentPage.value) => {
 const handleSearch = (nextFilters: SalesSearchFilters) => {
   filters.value = nextFilters
   void loadSalesList(1)
+}
+
+const getQueryArray = (value: unknown): string[] | undefined => {
+  if (Array.isArray(value)) {
+    return value.filter(
+      (item): item is string => typeof item === 'string',
+    )
+  }
+
+  if (typeof value === 'string') {
+    return [value]
+  }
+
+  return undefined
+}
+
+const applyRouteFilters = () => {
+  const consultStatusCode = getQueryArray(
+    route.query.consultStatusCode,
+  )
+
+  const contractStatusCode = getQueryArray(
+    route.query.contractStatusCode,
+  )
+
+  filters.value = {
+    ...filters.value,
+
+    ...(consultStatusCode
+      ? { consultStatusCode }
+      : {}),
+
+    ...(contractStatusCode
+      ? { contractStatusCode }
+      : {}),
+  }
 }
 
 const showReportMessage = (message: string, type: 'success' | 'error') => {
@@ -233,6 +271,8 @@ const handleWebformBulkSend = async () => {
 }
 
 onMounted(() => {
+  applyRouteFilters()
+  
   // 서로 독립적인 KPI와 목록 API를 동시에 호출
   void Promise.all([loadSummary(), loadSalesList(1)])
 })

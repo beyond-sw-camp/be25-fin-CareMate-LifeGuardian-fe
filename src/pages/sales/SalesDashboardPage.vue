@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import AppHeader from '../../components/common/Header.vue'
 import AppSidebar from '../../components/common/Sidebar.vue'
@@ -20,6 +21,8 @@ import {
   type DashboardAchievement,
   type DashboardSummary,
 } from '@/api/dashboard'
+
+const router = useRouter()
 
 const summary = ref<DashboardSummary | null>(null)
 const achievement = ref<DashboardAchievement | null>(null)
@@ -244,6 +247,16 @@ const handleContactPageChange = (page: number) => {
   selectedCustomerIds.value = []
 }
 
+const handleGoSalesFilter = (filter: {
+  consultStatusCode?: string[]
+  contractStatusCode?: string[]
+}) => {
+  void router.push({
+    path: '/sales',
+    query: filter,
+  })
+}
+
 onMounted(() => {
   void loadDashboard()
 })
@@ -276,7 +289,10 @@ onMounted(() => {
       </p>
       <template v-else>
         <section class="dashboard-top">
-          <DashboardSummaryCards :summary="summary" />
+          <DashboardSummaryCards 
+            :summary="summary"
+            @go-sales-filter="handleGoSalesFilter"
+          />
           <DashboardAchievementCard :achievement="achievement" />
         </section>
         <section class="card dashboard-contact">
