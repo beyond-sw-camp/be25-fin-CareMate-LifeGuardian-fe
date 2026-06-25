@@ -199,51 +199,58 @@ onBeforeUnmount(() => {
     <AppSidebar active-label="잠재고객 관리" />
 
     <main class="app-main potential-page__main">
-      <AppHeader title="잠재고객 관리" />
-      <section class="potential-search">
-        <label class="potential-search__field">
-          <span>고객명 검색</span>
-          <input
-            v-model="searchKeyword"
-            class="potential-search__input"
-            type="text"
-            placeholder="잠재고객 이름을 입력하세요."
-          />
-        </label>
-      </section>
-
+      <div class="potential-page__header">
+        <AppHeader title="잠재고객 관리" />
+      </div>
       <section class="card potential-list">
         <div class="potential-list__header">
-          <h3 class="potential-section-title">
-            목록
-            <span class="potential-list__count">
-              총 {{ filteredPotentialCustomers.length }}건
-            </span>
-          </h3>
-          <div class="potential-list__selected-actions">
-            <button
-              class="potential-button potential-button--register"
-              type="button"
-              @click="handleOpenRegisterModal"
-            >
-              등록
-            </button>
-            <button
-              class="potential-button potential-button--danger"
-              type="button"
-              :disabled="selectedCustomerIds.length === 0 || isDeleting"
-              @click="handleDeleteSelectedCustomers"
-            >
-              {{ isDeleting ? '삭제 중' : '삭제' }}
-            </button>
-            <button
-              class="potential-button potential-button--secondary"
-              type="button"
-              :disabled="isDeleting"
-              @click="clearSelection"
-            >
-              취소
-            </button>
+          <div class="potential-list__title">
+            <h3 class="potential-section-title">
+              목록
+              <span class="potential-list__count">
+                총 {{ filteredPotentialCustomers.length }}건
+              </span>
+            </h3>
+          </div>
+
+          <div class="potential-list__toolbar">
+            <section class="potential-search">
+              <label class="potential-search__field">
+                <span>고객명 검색</span>
+                <input
+                  v-model="searchKeyword"
+                  class="potential-search__input"
+                  type="text"
+                  placeholder="고객명을 입력하세요."
+                />
+              </label>
+            </section>
+            
+            <div class="potential-list__selected-actions">
+              <button
+                class="potential-button potential-button--register"
+                type="button"
+                @click="handleOpenRegisterModal"
+              >
+                등록
+              </button>
+              <button
+                class="potential-button potential-button--danger"
+                type="button"
+                :disabled="selectedCustomerIds.length === 0 || isDeleting"
+                @click="handleDeleteSelectedCustomers"
+              >
+                {{ isDeleting ? '삭제 중' : '삭제' }}
+              </button>
+              <button
+                class="potential-button potential-button--secondary"
+                type="button"
+                :disabled="isDeleting"
+                @click="clearSelection"
+              >
+                취소
+              </button>
+            </div>
           </div>
         </div>
         <p
@@ -297,14 +304,17 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .potential-page__main {
-  padding: 14px 26px 8px 24px;
+  padding: 6px 26px 8px 24px;
   overflow-x: hidden;
+}
+
+.potential-page__header {
+  padding-top: 10px;
 }
 
 .potential-search {
   display: flex;
   align-items: center;
-  margin: 2px 0 12px;
 }
 
 .potential-search__field {
@@ -321,8 +331,8 @@ onBeforeUnmount(() => {
 }
 
 .potential-search__input {
-  width: 280px;
-  height: 32px;
+  width: 200px;
+  height: 28px;
   border: 1px solid #d7dde7;
   border-radius: 6px;
   background: #ffffff;
@@ -339,24 +349,31 @@ onBeforeUnmount(() => {
 
 .potential-list {
   display: flex;
-  min-height: 600px;
+  min-height: 500px;
   flex-direction: column;
   border: 1px solid #e3e8f0;
   box-shadow: none;
-  padding: 11px 14px 12px;
+  padding: 2px 14px 12px;
   overflow: visible;
+  margin-top: -12px;
 }
 
 .potential-list__header {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.potential-list__toolbar {
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 9px;
 }
 
 .potential-section-title {
-  margin: 0 0 0 6px;
+  margin: 10px 0 0 5px;
   color: #263142;
   font-size: 20px;
   font-weight: 900;
@@ -373,6 +390,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
 }
 
 .potential-button {
