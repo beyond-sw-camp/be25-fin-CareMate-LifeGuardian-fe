@@ -42,7 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
   const branch = computed(() => branchName.value)
 
   const isAuthenticated = computed(() => {
-    return Boolean(role.value)
+    return Boolean(accessToken.value)
   })
 
   const setLoginInfo = (loginInfo: LoginInfo) => {

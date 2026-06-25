@@ -1,4 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { reissueAccessToken } from '@/api/instance'
+import { useAuthStore } from '@/stores/auth'
+import { getRoleHomePath } from '@/utils/auth'
 import {
   ACCESS_TOKEN_STORAGE_KEY,
   ADMIN_ROLE,
@@ -16,11 +19,6 @@ import SalesDashboardPage from '../pages/sales/SalesDashboardPage.vue'
 import SalesPage from '../pages/sales/SalesPage.vue'
 import AdminAuditAndEsgPage from "@/pages/admin/AdminAuditAndEsgPage.vue";
 
-const roleHomeMap: Record<UserRole, string> = {
-  [ADMIN_ROLE]: '/admin/dashboard',
-  [SALES_ROLE]: '/sales/dashboard',
-}
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -28,7 +26,7 @@ const router = createRouter({
       path: '/',
       redirect: () => {
         const role = sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
-        return role && roleHomeMap[role] ? roleHomeMap[role] : '/login'
+        return getRoleHomePath(role) ?? '/login'
       },
     },
     {
@@ -40,7 +38,7 @@ const router = createRouter({
       path: '/dashboard',
       redirect: () => {
         const role = sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
-        return role && roleHomeMap[role] ? roleHomeMap[role] : '/login'
+        return getRoleHomePath(role) ?? '/login'
       },
     },
     {
@@ -102,13 +100,29 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const hasToken = Boolean(sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY))
   const role = sessionStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null
   const allowedRoles = to.meta.allowedRoles as UserRole[] | undefined
+  const authStore = useAuthStore()
 
   if (!allowedRoles) {
     return
+  }
+
+  if (role) {
+    try {
+      await reissueAccessToken()
+    } catch {
+      authStore.clearAuthInfo()
+
+      return {
+        path: '/login',
+        query: {
+          redirect: to.fullPath,
+        },
+      }
+    }
   }
 
   if (!hasToken && !role) {
@@ -137,7 +151,7 @@ router.beforeEach((to) => {
   }
 
   if (!allowedRoles.includes(role)) {
-    return roleHomeMap[role]
+    return getRoleHomePath(role) ?? '/login'
   }
 })
 

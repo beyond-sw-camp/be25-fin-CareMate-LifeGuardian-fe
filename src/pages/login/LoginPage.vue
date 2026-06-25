@@ -2,90 +2,31 @@
 import axios from 'axios'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  ADMIN_ROLE,
-  SALES_ROLE,
-  type UserRole,
-} from '../../constants/auth'
+import { SALES_ROLE, type UserRole } from '@/constants/auth'
 import { login } from '@/api/auth'
 import FirstLoginModal from '@/components/auth/FirstLoginModal.vue'
 import { useAuthStore } from '@/stores/auth'
+import { getRoleFromAccessToken, getRoleHomePath } from '@/utils/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const isDev = import.meta.env.DEV
 const loginId = ref('')
 const password = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
 const isFirstLoginModalOpen = ref(false)
-const pendingLoginRole = ref<UserRole | null>(null)
 
-const moveToRoleHome = (role: UserRole) =>
-  router.push(role === ADMIN_ROLE ? '/admin/dashboard' : '/sales/dashboard')
+const moveToRoleHome = (role: UserRole) => {
+  const homePath = getRoleHomePath(role)
+
+  return router.push(homePath ?? '/login')
+}
 
 onMounted(() => {
   if (authStore.role === SALES_ROLE && authStore.isFirstLogin) {
-    pendingLoginRole.value = SALES_ROLE
     isFirstLoginModalOpen.value = true
   }
 })
-
-const normalizeTokenRole = (value: unknown): UserRole | null => {
-  if (typeof value !== 'string') {
-    return null
-  }
-
-  const role = value.replace(/^ROLE_/, '').toUpperCase()
-
-  if (role === ADMIN_ROLE) {
-    return ADMIN_ROLE
-  }
-
-  if (role === SALES_ROLE || role === 'SALES') {
-    return SALES_ROLE
-  }
-
-  return null
-}
-
-const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
-  const payload = token.split('.')[1]
-
-  if (!payload) {
-    return null
-  }
-
-  try {
-    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/')
-    const paddedPayload = normalizedPayload.padEnd(
-      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
-      '=',
-    )
-
-    return JSON.parse(atob(paddedPayload)) as Record<string, unknown>
-  } catch {
-    return null
-  }
-}
-
-const getRoleFromAccessToken = (token: string): UserRole | null => {
-  const payload = decodeJwtPayload(token)
-
-  if (!payload) {
-    return null
-  }
-
-  const role = normalizeTokenRole(payload.role)
-
-  if (role) {
-    return role
-  }
-
-  const roles = [payload.roles, payload.authorities].find(Array.isArray)
-
-  return roles?.map(normalizeTokenRole).find((role) => role !== null) ?? null
-}
 
 const submitLogin = async () => {
   errorMessage.value = ''
@@ -109,7 +50,6 @@ const submitLogin = async () => {
     })
 
     if (tokenRole === SALES_ROLE && result.isFirstLogin) {
-      pendingLoginRole.value = tokenRole
       isFirstLoginModalOpen.value = true
       return
     }
@@ -126,7 +66,6 @@ const submitLogin = async () => {
 
 const completeFirstLogin = async () => {
   isFirstLoginModalOpen.value = false
-  pendingLoginRole.value = null
   await router.push('/sales/dashboard')
 }
 </script>

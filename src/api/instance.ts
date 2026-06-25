@@ -4,7 +4,6 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios'
 
-import router from '@/router'
 import { ACCESS_TOKEN_STORAGE_KEY } from '@/constants/auth'
 import { useAuthStore } from '@/stores/auth'
 
@@ -48,6 +47,12 @@ const tokenApi = axios.create({
 
 let refreshTokenRequest: Promise<TokenReissueResponse> | null = null
 
+const redirectToLogin = async () => {
+  const { default: router } = await import('@/router')
+
+  await router.replace('/login')
+}
+
 const isAuthRequest = (url?: string) => {
   if (!url) return false
 
@@ -60,7 +65,9 @@ const isAuthRequest = (url?: string) => {
 
 const reissueToken = async () => {
   refreshTokenRequest ??= tokenApi
-    .post<ApiResponse<TokenReissueResponse>>(TOKEN_REISSUE_URL)
+    .post<ApiResponse<TokenReissueResponse>>(TOKEN_REISSUE_URL, undefined, {
+      withCredentials: true,
+    })
     .then((response) => response.data.data)
     .finally(() => {
       refreshTokenRequest = null
@@ -78,7 +85,7 @@ export const reissueAccessToken = async () => {
   return tokenInfo.accessToken
 }
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   const authStore = useAuthStore()
 
   const accessToken =
@@ -91,6 +98,20 @@ api.interceptors.request.use((config) => {
 
   if (accessToken && !isDevToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
+    return config
+  }
+
+  if (!accessToken && !isAuthRequest(config.url)) {
+    try {
+      const reissuedAccessToken = await reissueAccessToken()
+
+      config.headers.Authorization = `Bearer ${reissuedAccessToken}`
+    } catch (error) {
+      authStore.clearAuthInfo()
+      await redirectToLogin()
+
+      return Promise.reject(error)
+    }
   }
 
   return config
@@ -128,7 +149,7 @@ api.interceptors.response.use(
       return api(originalRequest as AxiosRequestConfig)
     } catch (refreshError) {
       authStore.clearAuthInfo()
-      await router.replace('/login')
+      await redirectToLogin()
 
       return Promise.reject(refreshError)
     }
