@@ -64,7 +64,10 @@ const logout = async () => {
 .app-header__title {
   display: grid;
   gap: 2px;
+  padding-top: 8px;
 }
+
+
 
 .app-header__user {
   display: flex;
