@@ -295,13 +295,17 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 
 <style scoped>
 .sales-table {
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
   border: 1px solid #e1e7f0;
   border-radius: 6px;
 }
 
 .sales-table table {
+  width: 100%;
+  min-width: 980px;
   table-layout: fixed;
+  border-collapse: collapse;
 }
 
 .sales-table th,
