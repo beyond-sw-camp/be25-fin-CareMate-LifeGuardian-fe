@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import axios from 'axios'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import AppHeader from '../../components/common/Header.vue'
 import AppSidebar from '../../components/common/Sidebar.vue'
@@ -31,15 +31,34 @@ const selectedParent = ref<ParentCustomerSearchResponse | null>(null)
 const POTENTIAL_PAGE_SIZE = 13
 const currentPage = ref(1)
 
+const searchKeyword = ref('')
+
+const filteredPotentialCustomers = computed(() => {
+  const keyword = searchKeyword.value.trim()
+
+  if (!keyword) {
+    return potentialCustomers.value
+  }
+
+  return potentialCustomers.value.filter((customer) =>
+    customer.customerName.includes(keyword),
+  )
+})
+
 const totalPages = computed(() =>
-  Math.ceil(potentialCustomers.value.length / POTENTIAL_PAGE_SIZE),
+  Math.ceil(filteredPotentialCustomers.value.length / POTENTIAL_PAGE_SIZE),
 )
 
 const displayedPotentialCustomers = computed(() => {
   const start = (currentPage.value - 1) * POTENTIAL_PAGE_SIZE
   const end = start + POTENTIAL_PAGE_SIZE
 
-  return potentialCustomers.value.slice(start, end)
+  return filteredPotentialCustomers.value.slice(start, end)
+})
+
+watch(searchKeyword, () => {
+  currentPage.value = 1
+  selectedCustomerIds.value = []
 })
 
 const getErrorMessage = (
@@ -181,12 +200,24 @@ onBeforeUnmount(() => {
 
     <main class="app-main potential-page__main">
       <AppHeader title="잠재고객 관리" />
+      <section class="potential-search">
+        <label class="potential-search__field">
+          <span>고객명 검색</span>
+          <input
+            v-model="searchKeyword"
+            class="potential-search__input"
+            type="text"
+            placeholder="잠재고객 이름을 입력하세요."
+          />
+        </label>
+      </section>
+
       <section class="card potential-list">
         <div class="potential-list__header">
           <h3 class="potential-section-title">
             목록
             <span class="potential-list__count">
-              총 {{ potentialCustomers.length }}건
+              총 {{ filteredPotentialCustomers.length }}건
             </span>
           </h3>
           <div class="potential-list__selected-actions">
@@ -268,6 +299,42 @@ onBeforeUnmount(() => {
 .potential-page__main {
   padding: 14px 26px 8px 24px;
   overflow-x: hidden;
+}
+
+.potential-search {
+  display: flex;
+  align-items: center;
+  margin: 2px 0 12px;
+}
+
+.potential-search__field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.potential-search__field span {
+  color: #263142;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.potential-search__input {
+  width: 280px;
+  height: 32px;
+  border: 1px solid #d7dde7;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 0 11px;
+  color: #172033;
+  font-size: 12px;
+  outline: none;
+}
+
+.potential-search__input:focus {
+  border-color: #5468ff;
+  box-shadow: 0 0 0 3px rgb(84 104 255 / 10%);
 }
 
 .potential-list {
