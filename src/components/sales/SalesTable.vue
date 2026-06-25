@@ -6,22 +6,26 @@ import {
   resolveSalesCustomerStageName,
   type SalesCustomer,
 } from '@/api/sales'
+import SalesWebformSendButton from '@/components/sales/SalesWebformSendButton.vue'
 
 const props = defineProps<{
   customers: SalesCustomer[]
   sendingCustomerIds?: number[]
   selectedReportIds?: number[]
+  sendReport?: (customer: SalesCustomer) => void
 }>()
 
 const emit = defineEmits<{
   'update:selectedReportIds': [reportIds: number[]]
-  sendReport: [customer: SalesCustomer]
 }>()
 
 const SENDABLE_REPORT_STATUS_CODES = new Set(['01', '02', '03'])
 const selectAllCheckbox = ref<HTMLInputElement | null>(null)
 
+// 부모 페이지에서 내려준 진행 중 ID 목록으로 행 단위 로딩 상태를 판단합니다.
 const isSending = (customerId: number) => props.sendingCustomerIds?.includes(customerId) ?? false
+
+// 리포트 ID가 있고 발송 버튼 노출 조건을 만족하는 고객만 체크박스 선택 대상입니다.
 const isSelectableReport = (customer: SalesCustomer) =>
   typeof customer.reportId === 'number' && customer.reportId > 0 && canShowSendButton(customer)
 const selectableReportIds = computed(() =>
@@ -29,6 +33,8 @@ const selectableReportIds = computed(() =>
     .filter(isSelectableReport)
     .map((customer) => customer.reportId!),
 )
+
+// 백엔드 상태 코드와 canSendReport 플래그를 함께 보고 발송/재발송 버튼 노출 여부를 결정합니다.
 const canShowSendButton = (customer: SalesCustomer) =>
   customer.hasReport &&
   Boolean(customer.reportStatusCode) &&
@@ -37,6 +43,13 @@ const canShowSendButton = (customer: SalesCustomer) =>
 const sendButtonLabel = (customer: SalesCustomer) => {
   if (isSending(customer.customerId)) return '발송 중'
   return customer.reportStatusCode === '02' ? '재발송' : '발송'
+}
+
+const webformStatusName = (customer: SalesCustomer) =>
+  customer.webformStatusName ?? '-'
+
+const handleReportClick = (customer: SalesCustomer) => {
+  props.sendReport?.(customer)
 }
 
 const isAllSelected = computed(
@@ -48,10 +61,12 @@ const isPartiallySelected = computed(
   () => Boolean(props.selectedReportIds?.length) && !isAllSelected.value,
 )
 
+// 헤더 체크박스는 현재 화면에서 선택 가능한 리포트만 대상으로 전체 선택을 토글합니다.
 const toggleAllCustomers = () => {
   emit('update:selectedReportIds', isAllSelected.value ? [] : selectableReportIds.value)
 }
 
+// 개별 행 체크박스 선택 상태를 부모의 selectedReportIds v-model로 되돌립니다.
 const toggleReport = (customer: SalesCustomer) => {
   if (!isSelectableReport(customer)) return
 
@@ -64,6 +79,7 @@ const toggleReport = (customer: SalesCustomer) => {
   emit('update:selectedReportIds', nextIds)
 }
 
+// 페이지/검색 조건 변경으로 화면에서 사라진 리포트는 선택 목록에서도 제거합니다.
 watch(
   () => props.customers,
   (customers) => {
@@ -81,6 +97,7 @@ watch(
   },
 )
 
+// HTML 체크박스의 indeterminate 상태는 DOM 프로퍼티라 watch로 직접 동기화합니다.
 watch(
   isPartiallySelected,
   (isIndeterminate) => {
@@ -91,12 +108,14 @@ watch(
   { immediate: true },
 )
 
+// 고객 성별은 API/목 데이터 표기가 섞일 수 있어 대표 표기로 정규화합니다.
 const genderLabel = (gender: string) => {
   if (gender === 'MALE' || gender === 'Male' || gender === 'M' || gender === '남') return '남'
   if (gender === 'FEMALE' || gender === 'Female' || gender === 'F' || gender === '여') return '여'
   return gender
 }
 
+// 계약 상태 코드를 배지 색상 클래스에 매핑합니다.
 const contractClass = (statusCode?: string) => {
   const classMap: Record<string, string> = {
     '01': 'warning',
@@ -109,29 +128,46 @@ const contractClass = (statusCode?: string) => {
   return statusCode ? classMap[statusCode] ?? 'muted' : 'danger-soft'
 }
 
-const calculateAgeShiftDDay = (ageShiftDate?: string) => {
-  if (!ageShiftDate) return undefined
+const contractStatusLabel = (customer: SalesCustomer) => {
+  const labelMap: Record<string, string> = {
+    '01': '설계중',
+    '02': '설계완료',
+    '03': '청약중',
+    '04': '청약완료',
+    '06': '수납완료',
+  }
 
-  const targetDate = new Date(`${ageShiftDate}T00:00:00`)
-  if (Number.isNaN(targetDate.getTime())) return undefined
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  return Math.ceil((targetDate.getTime() - today.getTime()) / 86_400_000)
+  return customer.contractStatusName || (customer.contractStatusCode ? labelMap[customer.contractStatusCode] : undefined) || '-'
 }
 
-const ageShiftRowClass = (ageShiftDate?: string) => {
-  const dDay = calculateAgeShiftDDay(ageShiftDate)
+// 보험 나이 변경 D-Day는 서버 값이 있으면 우선 사용하고, 없으면 날짜로 계산합니다.
+const calculateAgeShiftDDay = (customer: SalesCustomer) => {
+  if (typeof customer.ageIncreaseDDay === 'number') return customer.ageIncreaseDDay
+  if (!customer.insuranceAgeShiftDate) return undefined
+
+  const [year, month, day] = customer.insuranceAgeShiftDate.split('-').map(Number)
+  if (!year || !month || !day) return undefined
+
+  const today = new Date()
+  const targetTime = Date.UTC(year, month - 1, day)
+  const todayTime = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+
+  return Math.round((targetTime - todayTime) / 86_400_000)
+}
+
+// 나이 변경이 30일 이내인 고객 행은 우선 관리 대상으로 강조합니다.
+const ageShiftRowClass = (customer: SalesCustomer) => {
+  const dDay = calculateAgeShiftDDay(customer)
   if (dDay === undefined || dDay < 0 || dDay > 30) return undefined
   return dDay <= 7 ? 'sales-table__row--age-shift-near' : 'sales-table__row--age-shift-warning'
 }
 
-const ageShiftGuide = (ageShiftDate?: string) => {
-  const dDay = calculateAgeShiftDDay(ageShiftDate)
+// 행 안에 표시할 보험 나이 변경 안내 문구를 만듭니다.
+const ageShiftGuide = (customer: SalesCustomer) => {
+  const dDay = calculateAgeShiftDDay(customer)
   if (dDay === undefined || dDay < 0 || dDay > 30) return undefined
-  if (dDay === 0) return '상령일 도래 D-Day'
-  return dDay <= 7 ? `상령일 임박 D-${dDay}` : `상령일 도래 예정 D-${dDay}`
+  if (dDay === 0) return '보험 나이 변경 D-Day'
+  return dDay <= 7 ? `보험 나이 변경 임박 D-${dDay}` : `보험 나이 변경 예정 D-${dDay}`
 }
 
 const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
@@ -161,7 +197,8 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <th>계약 현황</th>
           <th>보험명</th>
           <th>피보험자</th>
-          <th>납입 회수일</th>
+          <th>웹폼 회수일</th>
+          <th>웹폼 발송상태</th>
           <th>리포트 발송상태</th>
           <th>웹폼 발송</th>
           <th>리포트 발송</th>
@@ -171,7 +208,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
         <tr
           v-for="customer in customers"
           :key="customer.customerId"
-          :class="ageShiftRowClass(customer.insuranceAgeShiftDate)"
+          :class="ageShiftRowClass(customer)"
         >
           <td>
             <input
@@ -185,8 +222,8 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <td>
             <RouterLink
               class="customer-name"
-              :class="{ 'customer-name--age-shift': ageShiftGuide(customer.insuranceAgeShiftDate) }"
-              :tabindex="ageShiftGuide(customer.insuranceAgeShiftDate) ? 0 : undefined"
+              :class="{ 'customer-name--age-shift': ageShiftGuide(customer) }"
+              :tabindex="ageShiftGuide(customer) ? 0 : undefined"
               :to="{
                 name: 'user-detail',
                 params: { customerId: customer.customerId },
@@ -195,11 +232,11 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
             >
               {{ customer.customerName }}
               <span
-                v-if="ageShiftGuide(customer.insuranceAgeShiftDate)"
+                v-if="ageShiftGuide(customer)"
                 class="customer-name__tooltip"
                 role="tooltip"
               >
-                {{ ageShiftGuide(customer.insuranceAgeShiftDate) }}
+                {{ ageShiftGuide(customer) }}
               </span>
             </RouterLink>
           </td>
@@ -218,32 +255,30 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           <td>{{ resolveSalesCustomerStageName(customer) }}</td>
           <td>
             <span class="contract-badge" :class="`contract-badge--${contractClass(customer.contractStatusCode)}`">
-              {{ customer.contractStatusName }}
+              {{ contractStatusLabel(customer) }}
             </span>
           </td>
           <td>{{ customer.insuranceName }}</td>
           <td>{{ customer.insuredName }}</td>
           <td>{{ customer.webformReceivedAt }}</td>
+          <td class="report-status">{{ webformStatusName(customer) }}</td>
           <td class="report-status">{{ customer.reportStatusName }}</td>
           <td>
             <div class="sales-table__actions">
-              <button
-                class="report-button report-button--webform report-button--disabled"
-                type="button"
-                disabled
-              >
-                발송
-              </button>
+              <SalesWebformSendButton :customer="customer" />
             </div>
           </td>
           <td>
             <div class="sales-table__actions">
               <button
                 class="report-button"
-                :class="{ 'report-button--disabled': !canShowSendButton(customer) }"
+                :class="{
+                  'report-button--resend': customer.reportStatusCode === '02',
+                  'report-button--disabled': !canShowSendButton(customer),
+                }"
                 type="button"
                 :disabled="!canShowSendButton(customer) || isSending(customer.customerId)"
-                @click="emit('sendReport', customer)"
+                @click="handleReportClick(customer)"
               >
                 {{ canShowSendButton(customer) ? sendButtonLabel(customer) : '발송' }}
               </button>
@@ -251,7 +286,7 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
           </td>
         </tr>
         <tr v-if="customers.length === 0">
-          <td class="sales-table__empty" colspan="14">조회된 영업현황이 없습니다.</td>
+          <td class="sales-table__empty" colspan="15">조회된 영업현황이 없습니다.</td>
         </tr>
       </tbody>
     </table>
@@ -470,6 +505,18 @@ const stepClass = (sortRank: number) => (sortRank === 1 ? 'danger' : 'warning')
 
 .report-button--webform {
   min-width: 54px;
+}
+
+.report-button--resend {
+  border: 1px solid #4e63e6;
+  background: #f2f5ff;
+  color: #3446c5;
+  box-shadow: inset 0 0 0 1px rgb(78 99 230 / 8%);
+}
+
+.report-button--resend:hover:not(:disabled) {
+  background: #e7ecff;
+  color: #2638b8;
 }
 
 .report-button:hover:not(:disabled) {
