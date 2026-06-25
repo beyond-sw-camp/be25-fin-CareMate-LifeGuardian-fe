@@ -28,6 +28,7 @@ export interface ContactCustomer {
   birthDate: string
   insuranceAgeShiftDate: string
   ageChangeLabel: string
+  contactReason: string
   badgeName: string
   badgeColor: DashboardBadgeColor
   consultStatusCode: string
