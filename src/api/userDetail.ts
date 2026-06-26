@@ -27,6 +27,8 @@ export interface UserDetail {
   guardianAddress?: string
   guardianAge?: number
   badges: UserDetailBadge[]
+  ageChangeLabel?: string | null
+  ageIncreaseDDay?: number | null
 }
 
 export interface ConsultationScript {
