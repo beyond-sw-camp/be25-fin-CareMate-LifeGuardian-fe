@@ -75,7 +75,7 @@ export async function getPotentialCustomers() {
 
 export async function getParentCustomers() {
     const response = await api.get<ApiResponse<ParentCustomerSearchResponse[]>>(
-        '/v1/potential-customer/parents',
+        '/v1/potential-customers/parents',
     )
 
     return response.data.data
