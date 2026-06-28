@@ -174,7 +174,7 @@ onMounted(() => {
 
 <style scoped>
 .parent-select-modal {
-  width: min(620px, 100%);
+  width: min(500px, 100%);
   border-radius: 14px;
   background: #ffffff;
   box-shadow: 0 18px 60px rgb(15 23 42 / 24%);
@@ -358,18 +358,26 @@ onMounted(() => {
 }
 
 .parent-select-modal__button {
-  min-width: 72px;
-  height: 34px;
-  border-radius: 6px;
-  padding: 0 14px;
-  font-size: 12px;
-  font-weight: 800;
+  min-width: 60px;
+  height: 30px;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .parent-select-modal__button--secondary {
   border: 1px solid #d7dde7;
   background: #ffffff;
   color: #4c586b;
+}
+
+.parent-select-modal__button--secondary:hover {
+  background: #f8fafc;
+}
+
+.parent-select-modal__button--primary:hover:not(:disabled) {
+  filter: brightness(0.95);
 }
 
 .parent-select-modal__button--primary {
