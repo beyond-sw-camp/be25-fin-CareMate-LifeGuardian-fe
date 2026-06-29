@@ -211,12 +211,12 @@ const genderLabel = (gender: string) => {
   padding: 0;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .potential-table__customer-name:hover {
   color: var(--color-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 .potential-table__empty {
